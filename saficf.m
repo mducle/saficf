@@ -47,7 +47,7 @@ while stopflag < 5                                  % Terminates schedule after 
     intfac_n = abs( intfac + lrnd(c) );             %   and new intensity factor
     spec_new = saficf_genspec(J,T,V,xdat,Ei,freq,...
                lineshape);
-    spec_new = elas_peak + spec_new.*intfac;        % Add elastic and inelastic peaks
+    spec_new = elas_peak + spec_new.*intfac_n;      % Add elastic and inelastic peaks
     cost_new = sqrt( sum( (spec_new - ydat).^2 ) ); % Cost is root mean square difference
     if saficf_accept(cost_new-cost,c)               % Acceptance criteria is Fermi-Dirac
       V = Vnew;
