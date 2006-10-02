@@ -27,9 +27,10 @@ if strcmp(ptgpstr,'cubic') | strcmp(lower(ptgpstr),'t') | strcmp(lower(ptgpstr),
   B = rand(1,2) .* splitfactor;
   Vstart = {zeros(1,5) [0 0 0 0 B(1) 0 0 0 5*B(1)] [zeros(1,6) B(2) 0 0 0 21*B(2) 0 0]}; 
 else
-  for ind_k = 1:3
-    % The factor of 5 ensures that the energy split is less than 50meV
-    Vstart{ind_k} = rand(1,4*ind_k+1) .* splitfactor .* allowed{ind_k};
+  for ind_sites = 1:size(allowed,2)
+    for ind_k = 1:3
+      % The factor of 5 ensures that the energy split is less than 50meV
+      Vstart{ind_k,ind_sites} = rand(1,4*ind_k+1) .* splitfactor .* allowed{ind_k,ind_sites};
+    end
   end
 end
-

@@ -13,8 +13,11 @@ function spec = saficf_genspec(J,T,V,Et,Ei,freq,lineshape)
 %
 % Outputs: spec      - vector     - the inelastic spectrum evaluated at Et points.
 
-Hcf = norm_cfhmltn(J,V);
-peaks = cflvls(Hcf,T,[0 1]);
+peaks = [];
+for ind_sites = 1:size(V,2)
+  Hcf = norm_cfhmltn(J,V(:,ind_sites));
+  peaks = [peaks; cflvls(Hcf,T,[0 1])];
+end
 
 fwhm = chopem(peaks(:,1),Ei,freq);
 

@@ -89,6 +89,10 @@ switch lower(ptgp_string)
   case 'orthorhombic';allowed = orthorhombic;
   case 'hexagonal';   allowed = hexagonal;
   case 'cubic';       allowed = cubic;
+% Special space groups
+  case 'dhcp';   allowed = [trigonalB hexagonal];
+  case 'p6mmc';  allowed = [trigonalB hexagonal];
+  case 'd46h';   allowed = [trigonalB hexagonal];
   otherwise
     error('Point Group not recognised');    
 end

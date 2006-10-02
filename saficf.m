@@ -44,7 +44,7 @@ while stopflag < 5                                  % Terminates schedule after 
   disp([cost c intfac]);
   for ind_markov = 1:100                            % Set markov chain length arbitrarily
     Vnew     = saficf_perturb(V,c);                 % Generates new configuration
-    intfac_n = abs( intfac + lrnd(c) );             %   and new intensity factor
+    intfac_n = abs( intfac + lrnd(c)/10 );          %   and new intensity factor
     spec_new = saficf_genspec(J,T,V,xdat,Ei,freq,...
                lineshape);
     spec_new = elas_peak + spec_new.*intfac_n;      % Add elastic and inelastic peaks
