@@ -19,6 +19,8 @@ elas_peak = feval(lineshape,xdat,elas_pars{2});     % Evaluates elastic peaks.
 
 intfac = rand*max(ydat)/10;                         % Intensity factor for inelastic peaks
 V = saficf_genstart(ptgpstr,maxsplit,J);
+range = saficf_range(ptgpstr,maxsplit,J);
+
 spec = saficf_genspec(J,T,V,xdat,Ei,freq,lineshape);
 spec = elas_peak + spec.*intfac;
 
@@ -43,7 +45,7 @@ while stopflag < 5                                  % Terminates schedule after 
   transflag = 0;                                    %   where energy(cost) has not changed
   disp([cost c intfac]);
   for ind_markov = 1:100                            % Set markov chain length arbitrarily
-    Vnew     = saficf_perturb(V,c);                 % Generates new configuration
+    Vnew     = saficf_perturb(V,c,range);           % Generates new configuration
     intfac_n = abs( intfac + lrnd(c)/10 );          %   and new intensity factor
     spec_new = saficf_genspec(J,T,V,xdat,Ei,freq,...
                lineshape);
