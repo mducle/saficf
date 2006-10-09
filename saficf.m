@@ -2,6 +2,7 @@ function V = saficf(J,T,Ei,freq,ptgpstr,xdat,ydat)
 
 % -----------------------------  Some default parameters  ------------------------------- %
 maxsplit = 50; % meV - the full CF splitting of the spin-orbit degenrate ground state.
+markov_l = 100; % Length of Markov chain.
 % --------------------------------------------------------------------------------------- %
 
 if ~exist('xdat')
@@ -35,7 +36,11 @@ if exist('handle')
   drawnow;
 end
 
-cost = sqrt( sum( (spec - ydat).^2 ) );
+if max(max(abs(edat))) < 1e-5
+  cost = sqrt( sum( (spec - ydat).^2 ) );
+else
+  cost = sum( (spec - ydat).^2 ./ (edat.^2) ) ;
+end
 
 cstart = saficf_startc(xdat,ydat,J,T,Ei,freq,ptgpstr,elas_peak);
 c = cstart;
@@ -44,7 +49,7 @@ disp('  Cost        c         intfac');
 while stopflag < 5                                  % Terminates schedule after 5 cycles
   transflag = 0;                                    %   where energy(cost) has not changed
   disp([cost c intfac]);
-  for ind_markov = 1:100                            % Set markov chain length arbitrarily
+  for ind_markov = 1:markov_l                       % Set markov chain length arbitrarily
     Vnew     = saficf_perturb(V,c,range);           % Generates new configuration
     intfac_n = abs( intfac + lrnd(c)/10 );          %   and new intensity factor
     spec_new = saficf_genspec(J,T,V,xdat,Ei,freq,...
