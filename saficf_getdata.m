@@ -10,7 +10,7 @@ handle = gco;
 if strcmp(get(handle,'Type'),'line')|strcmp(get(handle,'Type'),'hggroup');  % hggroup == errorbar
   linehandle = handle;
 else
-  grphdat = [findobj(handle,'Type','line');findobj(handle,'Type','hggroup')];
+  grphdat = [findobj(handle,'Type','hggroup');findobj(handle,'Type','line')];
   if isempty(lines)
     disp(['No line or surface objects in: ',handle]);
     return
