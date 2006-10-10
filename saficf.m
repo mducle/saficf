@@ -1,46 +1,79 @@
 function V = saficf(J,T,Ei,freq,ptgpstr,xdat,ydat)
 
 % -----------------------------  Some default parameters  ------------------------------- %
-maxsplit = 50; % meV - the full CF splitting of the spin-orbit degenrate ground state.
+maxsplit = 50;  % meV - the full CF splitting of the spin-orbit degenrate ground state.
 markov_l = 100; % Length of Markov chain.
 % --------------------------------------------------------------------------------------- %
 
-if ~exist('xdat')
-  [xdat,ydat,edat,handle] = saficf_getdata;
+% Checks input is in correct form
+if ~isequal(size(J),[1 1])
+  error('J must be a scalar');
+elseif min(size(T)) ~= 1
+  error('T must be a vector');
+elseif min(size(Ei)) ~= 1
+  error('Ei must be a vector');
+elseif min(size(freq)) ~= 1
+  error('freq must be a vector');
+end  
+
+num_dataset = length(T);
+if num_dataset ~= length(Ei) || num_dataset ~= length(freq)
+  error('T, Ei, freq must have the same length - i.e the number of datasets to fit');
 end
 
-xdat = xdat(:); ydat = ydat(:);
+% Gets data from a graph if no data provided.
+if ~exist('xdat')
+  for i_set = 1:num_dataset
+    [xdat{i_set},ydat{i_set},edat{i_set},handle(i_set)] = saficf_getdata;
+    xdat{i_set} = xdat{i_set}(:); 
+    ydat{i_set} = ydat{i_set}(:);
+    edat{i_set} = edat{i_set}(:);
+  end
+end
 
-stopflag = 0;
-iteration = 1;
 
-elas_pars = saficf_elaspars(xdat,ydat);             % Gets parameters of elastic peak
-lineshape = elas_pars{1};                           % Sets lineshape for all peaks
-elas_peak = feval(lineshape,xdat,elas_pars{2});     % Evaluates elastic peaks.
-
-intfac = rand*max(ydat)/10;                         % Intensity factor for inelastic peaks
+% Generate starting values for the CF parameters, and their max/min ranges.
 V = saficf_genstart(ptgpstr,maxsplit,J);
 range = saficf_range(ptgpstr,maxsplit,J);
 
-spec = saficf_genspec(J,T,V,xdat,Ei,freq,lineshape);
-spec = elas_peak + spec.*intfac;
+%max_y = [];
+cost = 0;
+for i_set = 1:num_dataset
+  % Gets the parameters of the elastic peak and lineshape for each dataset
+  [lineshape{i_set},elas_pars{i_set}] = saficf_elaspars(xdat{i_set},ydat{i_set});
+  % Evaluates elastic peaks.for each dataset
+  elas_peak{i_set} = feval(lineshape{i_set},xdat{i_set},elas_pars{i_set}); 
+  %max_y = [max_y max(ydat(:,i_set))];
+  %intfac = rand(1,num_set) .* max_y ./ 10;            % Intensity factor for inelastic peaks
+  intfac{iset} = rand*max(ydat{i_set})/10;          % Intensity factor for inelastic peaks
+  spectmp = saficf_genspec(J,T(i_set),V,xdat{i_set},Ei(i_set),freq(i_set),lineshape);
+  spec{i_set} = elas_peak{i_set} + spectmp.*intfac;
 
-if exist('handle')
-  xi = min(xdat):0.1:max(xdat);
-  spcp = saficf_genspec(J,T,V,xi,Ei,freq,lineshape);
-  e_pk = feval(lineshape,xi,elas_pars{2});
-  spcp = e_pk(:) + spcp(:).*intfac;
-  hold all;
-  old_plot_handle = plot(xi,spcp,'-r');
-  hold off;
-  drawnow;
+  % Draws initial generated spectra onto respective axes.
+  if exist('handle') && ishandle(handle(i_set))
+    xi = min(xdat{i_set}):0.1:max(xdat{i_set});
+    spcp = saficf_genspec(J,T(i_set),V,xi,Ei(i_set),freq(i_set),lineshape);
+    e_pk = feval(lineshape{i_set},xi,elas_pars{i_set});
+    spcp = e_pk(:) + spcp(:).*intfac;
+    hold all;
+    plot(handle(i_set),xi,spcp,'-r');
+    hold off;
+    drawnow;
+  end
+
+  % Calculates the initial cost
+  if max(max(abs(edat{i_set}))) < 1e-5
+    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
+    costflag = 1;                                   % Cost is root mean square difference
+  else
+    cost = cost + sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) ;
+    costflag = 0;                                   % Cost is chi-square
+  end
+
 end
 
-if max(max(abs(edat))) < 1e-5
-  cost = sqrt( sum( (spec - ydat).^2 ) );
-else
-  cost = sum( (spec - ydat).^2 ./ (edat.^2) ) ;
-end
+stopflag = 0;
+iteration = 1;
 
 cstart = saficf_startc(xdat,ydat,J,T,Ei,freq,ptgpstr,elas_peak);
 c = cstart;
@@ -51,11 +84,19 @@ while stopflag < 5                                  % Terminates schedule after 
   disp([cost c intfac]);
   for ind_markov = 1:markov_l                       % Set markov chain length arbitrarily
     Vnew     = saficf_perturb(V,c,range);           % Generates new configuration
-    intfac_n = abs( intfac + lrnd(c)/10 );          %   and new intensity factor
-    spec_new = saficf_genspec(J,T,V,xdat,Ei,freq,...
-               lineshape);
-    spec_new = elas_peak + spec_new.*intfac_n;      % Add elastic and inelastic peaks
-    cost_new = sqrt( sum( (spec_new - ydat).^2 ) ); % Cost is root mean square difference
+    for i_set = 1:num_set                           %   and new intensity factor
+      intfac_n{i_set} = abs( intfac{i_set} + lrnd(c)/10 );
+      spectmp = saficf_genspec(J,T(i_set),V, ...
+        xdat{i_set},Ei(i_set),freq(i_set),lineshape);
+      spec_new = elas_peak{i_set} ...               % Add elastic and inelastic peaks
+                 + spectmp.*intfac_n{i_set};
+      cost_new = cost;                              % Calculates new cost 
+      if costflag
+        cost_new = cost_new + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
+      else
+        cost_new = cost_new + sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) );
+      end
+    end
     if saficf_accept(cost_new-cost,c)               % Acceptance criteria is Fermi-Dirac
       V = Vnew;
       cost = cost_new;
@@ -70,30 +111,35 @@ while stopflag < 5                                  % Terminates schedule after 
   else
     stopflag = stopflag + 1
   end
-  if c/cstart < 1e-3 || iteration > 1000
-    stopflag = 6;
+  if c/cstart < 1e-3 || iteration > 1000            % Terminates after temperature falls
+    stopflag = 6;                                   %   by 1000 or 1000 iterations.
   end
-  if exist('handle')
-    xi = min(xdat):0.1:max(xdat);
-    spcp = saficf_genspec(J,T,V,xi,Ei,freq,lineshape);
-    e_pk = feval(lineshape,xi,elas_pars{2});
-    spcp = e_pk(:) + spcp(:).*intfac;
-    delete(old_plot_handle);
-    hold all;
-    old_plot_handle = plot(xi,spcp,'-r');
-    hold off;
-    drawnow;
+  for i_set = 1:num_set
+    if exist('handle') && ishandle(handle(i_set))   % Updates graphs
+      xi = min(xdat{i_set}):0.1:max(xdat{i_set});
+      spcp = saficf_genspec(J,T(i_set),V,xi,Ei(i_set),freq(i_set),lineshape);
+      e_pk = feval(lineshape{i_set},xi,elas_pars{i_set});
+      spcp = e_pk(:) + spcp(:).*intfac;
+      hold all;
+      plot(handle(i_set),xi,spcp,'-r');
+      hold off;
+      drawnow;
+    end
   end
 end
 
 [cstart c iteration intfac] 
 
-if exist('handle')
-  xi = min(xdat):0.1:max(xdat);
-  spcp = saficf_genspec(J,T,V,xi,Ei,freq,lineshape);
-  e_pk = feval(lineshape,xi,elas_pars{2});
-  spcp = e_pk(:) + spcp(:).*intfac;
-  hold all;
-  plot(xi,spcp);
-  hold off;
+% Draws final graphs
+for i_set = 1:num_set
+  if exist('handle') && ishandle(handle(i_set))
+    xi = min(xdat{i_set}):0.1:max(xdat{i_set});
+    spcp = saficf_genspec(J,T(i_set),V,xi,Ei(i_set),freq(i_set),lineshape);
+    e_pk = feval(lineshape{i_set},xi,elas_pars{i_set});
+    spcp = e_pk(:) + spcp(:).*intfac;
+    hold all;
+    plot(handle(i_set),xi,spcp,'-r');
+    hold off;
+    drawnow;
+  end
 end

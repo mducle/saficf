@@ -1,7 +1,7 @@
-function pars = saficf_elaspars(xdat,ydat)
+function [pars,parn] = saficf_elaspars(xdat,ydat)
 % Estimates the centre, FWHM and height of the elastic peaks, and best fitted lineshape
 %
-% Syntax:  pars = saficf_elaspars(xdat,ydat)
+% Syntax:  [pars,parn] = saficf_elaspars(xdat,ydat)
 %
 % Inputs:  xdat - vector     - the input independent variable (energy transfer in meV)
 %          ydat - vector     - the input dependent variable (intensity or S(q,w))
@@ -9,6 +9,8 @@ function pars = saficf_elaspars(xdat,ydat)
 % Outputs: pars - cell array - {type_str [centre fwhm height lfrac]} - parameters of fit.
 %                              type_str is a string: 'gauss', 'lor' or 'pvoigt'
 %                              pars{2} is a vector of parameters suitable to lineshape.
+%          parn - vector     - if two output is given, the first will be type_str and the
+%                              second will be the parameters of fit.
 %
 % This function uses the Levenberg-Marquardt algorithm implemented by Shrager, Jutan and
 %   Muzic in the file speclsqr.m from the spec1d package to test for the lineshape that 
@@ -50,3 +52,7 @@ switch find(lsq == min(lsq))
   case 3; pars = {'florr' ,pars_gauss};
 end
 
+if nargout == 2
+  parn = pars{2};
+  pars = pars{1};
+end
