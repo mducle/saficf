@@ -48,12 +48,12 @@ if isempty(xdat)
 else
   if isempty(ydat)
     error('If you supply x-data you must also supply the y-data!');
-  elseif isvector(ydat) & isvector(xdat)
+  elseif isvector(ydat) & isvector(xdat) & ~iscell(ydat) & ~iscell(xdat)
   % Convert data vectors to cell-arrays so the dataset index looping still works
     ydat = {ydat(:)};
     xdat = {xdat(:)};
     if exist('edat') 
-      if isvector(edat)
+      if isvector(edat) & ~iscell(edat)
         edat = {edat(:)};
       else
         error('xdat and ydat are vectors so edat must also be vector!');

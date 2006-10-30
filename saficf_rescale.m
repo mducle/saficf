@@ -44,7 +44,7 @@ i_match_all(find(cellfun('isempty',i_match_all))) = [];
 for i_cell = 1:length(i_match_all)
 % Make sure that datasets with same T, Ei, freq have same binning to add statistics!
   n_sets_sum = length(i_match_all{i_cell});
-  if sum( sum(cell2mat(xdat(i_match_all{i_cell})),2) ./ n_sets_sum ) 
+  if sum( sum(cell2mat(xdat(i_match_all{i_cell})),2) ./ n_sets_sum ... 
             - xdat{i_match_all{i_cell}(1)} ) < 1e-3
     ydat{i_match_all{i_cell}(1)} = sum(cell2mat(ydat(i_match_all{i_cell})),2) ./ n_sets_sum;
     edat{i_match_all{i_cell}(1)} = sum(cell2mat(edat(i_match_all{i_cell})),2) ./ n_sets_sum;

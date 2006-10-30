@@ -65,16 +65,16 @@ disp('  Cost        c         intfac');
 
 while stopflag < 5                                  % Terminates schedule after 5 cycles
   transflag = 0;                                    %   where energy(cost) has not changed
-  disp([cost c intfac{1} intfac{2}]);
+  disp([cost c intfac]);
   for ind_markov = 1:markov_l                       % Set markov chain length arbitrarily
     cost_new = 0;                                   % Resets cost value to sum over datasets
     Vnew     = saficf_perturb(V,c,range);           % Generates new configuration
-    for i_set = 1:num_dataset                       %   and new intensity factor
-      intfac_n{i_set} = abs( intfac + lrnd(c)/10 );
+    intfac_n = abs( intfac + lrnd(c)/10 );          %   and new intensity factor
+    for i_set = 1:num_dataset
       spectmp = saficf_genspec(J,T(i_set),Vnew, ...
         xdat{i_set},Ei(i_set),freq(i_set),lineshape{i_set});
       spec_new = elas_peak{i_set} ...               % Add elastic and inelastic peaks
-                 + spectmp.*intfac_n{i_set};
+                 + spectmp.*intfac_n;
       if costflag(i_set)                            % Calculates new cost 
         cost_new = cost_new + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
       else
