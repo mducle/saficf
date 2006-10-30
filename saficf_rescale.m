@@ -23,11 +23,18 @@ saficf_defs;
 
 num_dataset = length(T);
 
+% Defines the elastic range as 1.5*FWHM of the elastic peak for each dataset. The elastic
+%   range is the range in energy transfer where SAFiCF will not look for inelastic peaks.
+for i_set = 1:num_dataset
+  elaspars = saficf_elaspars(xdat{i_set},ydat{i_set});
+  elas_rng(i_set) = elaspars{2}(2) * 1.5;
+end
+
 % Find datasets sharing same T,Ei,freq and adds statistics in them!
 indexcounter = ones(1,num_dataset); 
 % Finds the indices of datasets with the same values of T, Ei and freq, and puts each unique 
 %   set of datasets into a cell.
-for i_set = 1:num_dataset; 
+for i_set = 1:num_dataset 
   i_match_all{i_set} = find(T==T(i_set) & Ei==Ei(i_set) & freq==freq(i_set) & indexcounter~=0);
   indexcounter(find(T==T(i_set) & Ei==Ei(i_set) & freq==freq(i_set) & indexcounter~=0)) = 0; 
 end
@@ -35,10 +42,13 @@ end
 i_match_all(find(cellfun('isempty',i_match_all))) = [];
 % Loops over cells in i_match_all and adds statistics of datasets in each cell.
 for i_cell = 1:length(i_match_all)
-%TODO: make sure that datasets with same T, Ei, freq have same binning to add statistics!
+% Make sure that datasets with same T, Ei, freq have same binning to add statistics!
   n_sets_sum = length(i_match_all{i_cell});
-  ydat{i_match_all{i_cell}(1)} = sum(cell2mat(ydat(i_match_all{i_cell})),2) ./ n_sets_sum;
-  edat{i_match_all{i_cell}(1)} = sum(cell2mat(edat(i_match_all{i_cell})),2) ./ n_sets_sum;
+  if sum( sum(cell2mat(xdat(i_match_all{i_cell})),2) ./ n_sets_sum ) 
+            - xdat{i_match_all{i_cell}(1)} ) < 1e-3
+    ydat{i_match_all{i_cell}(1)} = sum(cell2mat(ydat(i_match_all{i_cell})),2) ./ n_sets_sum;
+    edat{i_match_all{i_cell}(1)} = sum(cell2mat(edat(i_match_all{i_cell})),2) ./ n_sets_sum;
+  end
 end
 % Deletes other cells that have now been summed
 i_match_all = cell2mat(i_match_all'); 
@@ -64,9 +74,11 @@ i_match_Ei(find(cellfun('isempty',i_match_Ei))) = [];
 % Loops over cells in i_match_Ei and scales datasets with respects to first dataset in cell.
 for i_cell = 1:length(i_match_Ei)
   if length(i_match_Ei{i_cell}) ~= 1   % Leaves datasets with unique T,Ei,freq alone. 
-    ref_elas_height = max(ydat{i_match_Ei{i_cell}(1)}(find(abs(xdat{i_match_Ei{i_cell}(1)})<elas_rng)));
+    first_set_x = xdat{i_match_Ei{i_cell}(1)};
+    first_set_y = ydat{i_match_Ei{i_cell}(1)};
+    ref_elas_height = max( first_set_y( find(abs(first_set_x) < elas_rng(i_set)) ) );
     for i_set = i_match_Ei{i_cell}(2:length(i_match_Ei{i_cell}))
-      ratio_elas_heights = ref_elas_height / max(ydat{i_set}(find(abs(xdat{i_set})<elas_rng)));
+      ratio_elas_heights = ref_elas_height / max(ydat{i_set}(find(abs(xdat{i_set})<elas_rng(i_set))));
       ydat{i_set} = ydat{i_set} .* ratio_elas_heights;
       edat{i_set} = edat{i_set} .* ratio_elas_heights;
     end
@@ -85,13 +97,20 @@ i_match_T(find(cellfun('isempty',i_match_T))) = [];
 % Loops over cells in i_match_T and scales datasets with respect to largest inelastic peak.
 for i_cell = 1:length(i_match_T)
   if length(i_match_T{i_cell}) ~= 1    % Leaves datasets with unique T,Ei,freq alone. 
-    ref_inelas_ht = max(ydat{i_match_T{i_cell}(1)}(find(xdat{i_match_T{i_cell}(1)}>elas_rng)));
+    ref_inelas_ht = max(ydat{i_match_T{i_cell}(1)}(find(xdat{i_match_T{i_cell}(1)}>elas_rng(i_set))));
     ref_inelas_Et = xdat{i_match_T{i_cell}(1)}(find(ydat{i_match_T{i_cell}(1)}==ref_inelas_ht));
-      %TODO: Check that ref_inelas_Et is scalar!
+    % Checks that ref_inelas_Et is scalar!
+    if ~isscalar(ref_inelas_Et)
+      % Checks that the values of ref_inelas_Et are similar. peak_tol is given in saficf_defs.m
+      if ( ref_inelas_Et(1) - ( sum(ref_inelas_Et)/length(ref_inelas_Et) ) ) < peak_tol
+        ref_inelas_Et = ref_inelas_Et(1);
+      end
+    end
+    %TODO: Possible bug here if there are two peaks of roughly equal intensity.
     for i_set = i_match_T{i_cell}(2:length(i_match_T{i_cell}))
-      new_inelas_ht = max(ydat{i_set}(find(xdat{i_set}>elas_rng)));
+      new_inelas_ht = max(ydat{i_set}(find(xdat{i_set}>elas_rng(i_set))));
       % Checks that we are using the same peak!
-      if abs(ref_inelas_Et-xdat{i_set}(find(ydat{i_set}==new_inelas_ht))) < 0.1
+      if abs(ref_inelas_Et-xdat{i_set}(find(ydat{i_set}==new_inelas_ht))) < peak_tol
         ratio_inelas_ht = ref_inelas_ht / new_inelas_ht;
         ydat{i_set} = ydat{i_set} .* ratio_inelas_ht;
         edat{i_set} = edat{i_set} .* ratio_inelas_ht;
@@ -99,5 +118,4 @@ for i_cell = 1:length(i_match_T)
     end
   end
 end
-%TODO: Change criterion so that elas_rng = 1.5*FWHM
 

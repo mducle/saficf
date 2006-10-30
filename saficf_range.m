@@ -17,14 +17,15 @@ if ~exist('J')         J        = 4;    end
 % Gets the allowed parameters
 allowed = ptgp(ptgpstr);
 
-% Checks that the site symmetry is cubic. If so, need  V44 = 5.V40; V64 = 21.V60;
-if strcmp(ptgpstr,'cubic') | strcmp(lower(ptgpstr),'t') | strcmp(lower(ptgpstr),'o')
-  B = rand(1,2) .* splitfactor;
-  Vstart = {zeros(1,5) [0 0 0 0 B(1) 0 0 0 5*B(1)] [zeros(1,6) B(2) 0 0 0 21*B(2) 0 0]}; 
 else
   for ind_sites = 1:size(allowed,2)
     % Works out the maximum splitting
-    E = eig(norm_cfhmltn(J,allowed{:,ind_sites})); 
+    % Checks that the site symmetry is cubic. If so, need  V44 = 5.V40; V64 = 21.V60;
+    if strcmp(ptgpstr,'cubic') | strcmp(lower(ptgpstr),'t') | strcmp(lower(ptgpstr),'o')
+      E = eig(norm_cfhmltn(J,{zeros(1,5) [0 0 0 0 1 0 0 0 5] [zeros(1,6) 1 0 0 0 -21 0 0]})); 
+    else
+      E = eig(norm_cfhmltn(J,allowed{:,ind_sites})); 
+    end
     split_unity = max(E'-min(E));              % Full CF split with all parameters set to unity.
     range(ind_sites) = maxsplit / split_unity; % If all pars = splitfactor, full split = maxsplit
   end

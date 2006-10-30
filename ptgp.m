@@ -78,7 +78,7 @@ switch lower(ptgp_string)
   case 'd3d'; allowed = trigonalB;     % D3d
   case 's4';  allowed = tetragonalA;   % S4
   case 's6';  allowed = trigonalA;     % S6
-  case 't';   allowed = cubic;         % T   - B40,B60; B44 = 5B40; B64 = 21B60;
+  case 't';   allowed = cubic;         % T   - B40,B60; B44 = 5B40; B64 = -21B60;
   case 'th';  allowed = cubic;         % Th
   case 'td';  allowed = cubic;         % Td
   case 'o';   allowed = cubic;         % O
