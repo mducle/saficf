@@ -4,15 +4,15 @@ function out = fgauss(xdat,pars)
 % Syntax:  out = fgauss(pars,xdat)
 %
 % Inputs:  xdat - vector - is the ordinate at which to calculate
-%          pars - vector - [centre fwhm area]
+%          pars - vector - [centre fwhm height]
 %
 % Outputs: out  - vector - is the abscisa which is calculated.
 
 % Makes equation looks better
 c = pars(1);
 w = pars(2);
-a = pars(3);
+h = pars(3);
 x = xdat(:);
 
-out = (a/w*sqrt(4*log(2)/pi)) .* exp(-4.*log(2).*((x-c)./w).^2);
+out = h .* exp(-4.*log(2).*((x-c)./w).^2);
 

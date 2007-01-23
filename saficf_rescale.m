@@ -47,7 +47,9 @@ for i_cell = 1:length(i_match_all)
   if sum( sum(cell2mat(xdat(i_match_all{i_cell})),2) ./ n_sets_sum ... 
             - xdat{i_match_all{i_cell}(1)} ) < 1e-3
     ydat{i_match_all{i_cell}(1)} = sum(cell2mat(ydat(i_match_all{i_cell})),2) ./ n_sets_sum;
-    edat{i_match_all{i_cell}(1)} = sum(cell2mat(edat(i_match_all{i_cell})),2) ./ n_sets_sum;
+    if ~isempty(edat)
+      edat{i_match_all{i_cell}(1)} = sum(cell2mat(edat(i_match_all{i_cell})),2) ./ n_sets_sum;
+    end
   end
 end
 % Deletes other cells that have now been summed
@@ -80,7 +82,9 @@ for i_cell = 1:length(i_match_Ei)
     for i_set = i_match_Ei{i_cell}(2:length(i_match_Ei{i_cell}))
       ratio_elas_heights = ref_elas_height / max(ydat{i_set}(find(abs(xdat{i_set})<elas_rng(i_set))));
       ydat{i_set} = ydat{i_set} .* ratio_elas_heights;
-      edat{i_set} = edat{i_set} .* ratio_elas_heights;
+      if ~isempty(edat)
+        edat{i_set} = edat{i_set} .* ratio_elas_heights;
+      end
     end
   end
 end
@@ -113,7 +117,9 @@ for i_cell = 1:length(i_match_T)
       if abs(ref_inelas_Et-xdat{i_set}(find(ydat{i_set}==new_inelas_ht))) < peak_tol
         ratio_inelas_ht = ref_inelas_ht / new_inelas_ht;
         ydat{i_set} = ydat{i_set} .* ratio_inelas_ht;
-        edat{i_set} = edat{i_set} .* ratio_inelas_ht;
+        if ~isempty(edat)
+          edat{i_set} = edat{i_set} .* ratio_inelas_ht;
+        end
       end
     end
   end

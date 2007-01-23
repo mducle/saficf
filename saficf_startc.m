@@ -1,4 +1,4 @@
-function cstart = saficf_startc(xdat,ydat,edat,J,T,Ei,freq,ptgpstr,elas_peak)
+function [cstart,cost_factor] = saficf_startc(xdat,ydat,edat,J,T,Ei,freq,ptgpstr,elas_peak,cfpar_steps)
 % Defines the start temperature so that at least 49% of transitions are accepted.
 %
 % Syntax:  cstart = saficf_startc(xdat,ydat,J,T,Ei,freq,ptgpstr,elas_peak)
@@ -29,7 +29,7 @@ function cstart = saficf_startc(xdat,ydat,edat,J,T,Ei,freq,ptgpstr,elas_peak)
 num_set = length(T);
 
 for i_set = 1:num_set
-  if max(max(abs(edat{i_set}))) < 1e-5
+  if isempty(edat) || max(max(abs(edat{i_set}))) < 1e-5
     costflag = 1;                                 % Cost is root mean square difference
   else
     costflag = 0;                                 % Cost is chi-square
@@ -48,7 +48,7 @@ for ind_conf = 1:10
     if costflag                                   % Calculates new cost 
       cost(ind_conf) = cost(ind_conf) + sqrt( sum( (spec - ydat{i_set}).^2 ) );
     else
-      cost(ind_conf) = cost(ind_conf) + sum( (spec - ydat{i_set}).^2 ./ (edat{i_set}.^2) );
+      cost(ind_conf) = cost(ind_conf) + sqrt( sum( (spec - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
     end
   end
 
@@ -63,5 +63,7 @@ end
 
 mean_cost = sum(cost)/10;
 
-cstart = mean_cost / 25;   % 1/log((1-n)/n) = 25 for n = 0.49
+cost_factor = cfpar_steps * 25 / mean_cost;
+
+cstart = mean_cost * cost_factor / 25;   % 1/log((1-n)/n) = 25 for n = 0.49
 %cstart = specs;

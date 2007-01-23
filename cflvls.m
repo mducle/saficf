@@ -23,10 +23,11 @@ function peaks = cflvls(Hcf,T,flags,nt)
 %                  as the energy and the imaginery part as the dipole matrix element.
 
 % By Duc Le - Thu Aug 10 00:33:52 BST 2006 - duc.le@ucl.ac.uk
-% mdl - updated 060817: improved complex output so `plot(cflvls(Hcf,T,[0 0])` works 
 
-% This file is part of the SAfiCF package. 
-% Licenced under the GNU GPL v2 or later. 
+% mdl - updated 060817: improved complex output so `plot(cflvls(Hcf,T,[0 0])` works 
+%     - updated 070123: fixed mag_op_j(J) error [was mag_op_J(4)] and added Hcf checks
+
+% This file is part of the SAfiCF package. Licenced under the GNU GPL v2 or later. 
 
 % Physical constants. Taken from NIST Reference on Constants, Units, and Uncertainty, 
 % http://physics.nist.gov/cuu/Constants/
@@ -41,13 +42,25 @@ if ~exist('flags'); flags = [1 1]; end
 if ~exist('nt');    nt    = 1;     end
 if ~exist('T');     T     = 1e-10; end
 
+% Checks that CF Hamiltonian is square and hermitian
+n = size(Hcf,1);
+if n ~= size(Hcf,2)
+  error('CF Hamiltonian is not square!');
+elseif n<2
+  error('CF Hamiltonian too small');
+end
+J = (n-1)/2;
+if sum(sum(Hcf-Hcf')) > 1e-10
+  error('CF Hamiltonian is not hermitian!');
+end
+
 % Diagonalises the CF Hamiltonian and cleans up the eigenvectors and eigenvalues.
 [V,E] = eig(Hcf);
 V(find(abs(V)<3e-3)) = 0;
 E = diag(E) - min(min(E));
 
 % Calculates the magnetic operators in the |J,Jz> basis
-Jmat = mag_op_j(4);
+Jmat = mag_op_j(J);
 Jx = Jmat(:,:,1);   
 Jy = Jmat(:,:,2); 
 Jz = Jmat(:,:,3);  %               2       2          2       2 
@@ -75,13 +88,13 @@ end
 peaks(:,2) = Trans(:);
 
 % Eliminates repeated entries due to degenerate levels.
-peaks = peaks(find(abs(peaks(:,2))>1e-3),:);
+peaks = peaks(find(abs(peaks(:,2))>1e-10),:);
 for ind_i = 1:size(peaks,1)
   for ind_j = 1:size(peaks,1)
     if(ind_i~=ind_j) 
-      if (abs(peaks(ind_i,:)-peaks(ind_j,:))<1e-3)
+      if (abs(peaks(ind_i,:)-peaks(ind_j,:))<1e-10)
         peaks(ind_i,:) = [0 0];
-        break;
+        %break;
       end
     end
   end
@@ -90,10 +103,10 @@ end
 for ind_i = 1:size(peaks,1)
   for ind_j = 1:size(peaks,1)
     if(ind_i~=ind_j) 
-      if (abs(peaks(ind_i,1)-peaks(ind_j,1))<1e-5) && (abs(peaks(ind_i,2)-peaks(ind_j,2))>1e-1) 
+      if (abs(peaks(ind_i,1)-peaks(ind_j,1))<1e-10) && (abs(peaks(ind_i,2)-peaks(ind_j,2))>1e-1) 
         peaks(ind_j,2) = peaks(ind_i,2) + peaks(ind_j,2);
         peaks(ind_i,:) = [0 0];
-        break;
+        %break;
       end
     end
   end

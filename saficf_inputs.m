@@ -1,7 +1,7 @@
-function [xdat,ydat,edat] = saficf_inputs(J,T,Ei,freq,ptgpstr,xdat,ydat,edat)
+function [xdat,ydat,edat,handle] = saficf_inputs(J,T,Ei,freq,ptgpstr,xdat,ydat,edat)
 % Checks that the inputs to saficf are of the correct type and dimensions.
 %
-% Syntax:  [check,xdat,ydat,edat] = saficf_inputs(J,T,Ei,freq,ptgpstr,xdat,ydat,edat)
+% Syntax:  [xdat,ydat,edat,handle] = saficf_inputs(J,T,Ei,freq,ptgpstr,xdat,ydat,edat)
 %
 % Inputs:  J       - scalar     - The total angular quantum number. 
 %          T       - vector     - the temperature of each dataset taken.
@@ -16,6 +16,7 @@ function [xdat,ydat,edat] = saficf_inputs(J,T,Ei,freq,ptgpstr,xdat,ydat,edat)
 %                                 current graphs.
 %          ydat    - cell array - the intensity/scattering function datasets
 %          edat    - cell array - the error in y datasets.
+%          handle  - vector     - vector of handles to the graphs with each dataset
 
 % This file is part of the SAFiCF package, licenced under the Gnu GPL v2.
 
@@ -31,6 +32,8 @@ elseif min(size(Ei)) ~= 1
 elseif min(size(freq)) ~= 1
   error('freq must be a vector');
 end  
+
+handle = [];
 
 num_dataset = length(T);
 if num_dataset ~= length(Ei) || num_dataset ~= length(freq)
@@ -52,7 +55,7 @@ else
   % Convert data vectors to cell-arrays so the dataset index looping still works
     ydat = {ydat(:)};
     xdat = {xdat(:)};
-    if exist('edat') 
+    if ~isempty(edat) 
       if isvector(edat) & ~iscell(edat)
         edat = {edat(:)};
       else
