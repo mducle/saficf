@@ -1,8 +1,17 @@
 function V = saficf(J,T,Ei,freq,ptgpstr,xdat,ydat,edat)
 
-% Include definitions
-saficf_defs;
+% ----------------------------------  Some default parameters  ------------------------------------ %
+maxsplit = 50;  % meV - the full CF splitting of the spin-orbit degenrate ground state.
+elas_rng = 3;   % meV - the range from +elas_rng to -elas_rng in Et for the elastic peak.
+peak_tol = 0.1; % meV - the tolerance on the energy transfer of inelastic peak
+infac_ll = 0.1; %     - the intensity factor lower limit for inelastic peaks
+infac_hl = 1.5; %     - the intensity factor upper limit for inelastic peaks
+maxTstep = 100; %     - maximum number of temperature steps to take
+% ------------------------------------------------------------------------------------------------- %
 
+% ------------------------------------------------------------------------------------------------- %
+% Input Processing                                                                                  %
+% ------------------------------------------------------------------------------------------------- %
 % Checks input is in correct form
 if ~exist('xdat'); xdat = {}; end
 if ~exist('ydat'); ydat = {}; end
@@ -14,15 +23,43 @@ if ~exist('edat'); edat = {}; end
 
 num_dataset = length(T);
 
-%TODO: Find a way to use cubic parameters with the Fabi normalisation - not 5B40, -21B60!
+% ------------------------------------------------------------------------------------------------- %
+% Initialization                                                                                    %
+% ------------------------------------------------------------------------------------------------- %
+% Sets an intensity factor for the inelastic peaks.
+intfac = rand*max(ydat{1})/10;
 
 % Generate starting values for the CF parameters, and their max/min ranges.
 V = saficf_genstart(ptgpstr,maxsplit,J);
 range = saficf_range(ptgpstr,maxsplit,J);
 
-% Sets an intensity factor for the inelastic peaks.
-intfac = rand*max(ydat{1})/10;
+if (strcmp(ptgpstr,'cubic') | strncmp(ptgpstr,'o',1) | strncmp(ptgpstr,'t',1))
+  n = 3;
+  [x,x0] = deal([(rand(1,2)-0.5).*(2*range) intfac]); % Starting point (set of parameters)
+else
+  x0 = [];
+  for i_s = 1:size(V,2)                               % i_s indexes sites
+    %[vd(1:5),vd(6:14),vd(15:27)] = deal(V{:,i_site}); % vd is dummy variable
+    vd(i_s,:) = [V{1,i_s} V{2,i_s} V{3,i_s}];         % vd is dummy variable
+    nV(i_s) = length(find(vd(i_s,:)));                % Number of parameters needed per site.
+    x0 = [x0 vd(i_s,find(vd(i_s,:)))];                % Starting point (set of parameters)
+  end
+  [x,x0] = deal([x0 intfac]);
+  n = sum(nV) + 1;                                    % Number of parameters needed.
+end
 
+% Generate a starting step vector
+[v,v0] = deal( (rand(1,n)-.5).*2 .* x0 );             % some fraction of starting point values!
+
+% Some Simulated Annealing Parameters, after Corana et. al. 
+Ns = 20;             % Number of passes to ensure step sizes give acceptance rate of approx 50%
+NT = max([100,5*n]); % Number of steps at each temperature to ensure thermal equilibrium.
+Nepsilon = 4;        % Number of successive temperature reductions before testing for stopping fit.
+ci = ones(1,n).*2;   % Step varying criterion intial value
+rT = 0.85;           % Temperature reduction coefficient
+epsilon = 1e-4;      % Convergence criterion
+
+% Calculates the parameters of the elastic peak, which will not be fitted by SA, for each dataset.
 cost = 0;
 for i_set = 1:num_dataset
   % Gets the parameters of the elastic peak and lineshape for each dataset
@@ -32,7 +69,14 @@ for i_set = 1:num_dataset
   % Generates a spectrum with inelastic peaks from the starting CF parameters.  
   spectmp = saficf_genspec(J,T(i_set),V,xdat{i_set},Ei(i_set),freq(i_set),lineshape{i_set});
   spec{i_set} = elas_peak{i_set} + spectmp.*intfac;
-
+  % Calculates the initial cost
+  if isempty(edat) || max(max(abs(edat{i_set}))) < 1e-5
+    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
+    costflag(i_set) = 1;                            % Cost is root mean square difference
+  else
+    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
+    costflag(i_set) = 0;                            % Cost is sqrt(chi-square)
+  end
   % Draws initial generated spectra onto respective axes.
   if ~isempty(handle) && ishandle(handle(i_set))
     xi = min(xdat{i_set}):0.1:max(xdat{i_set});
@@ -44,68 +88,100 @@ for i_set = 1:num_dataset
     hold (handle(i_set),'off');
     drawnow;
   end
-
-  % Calculates the initial cost
-  if isempty(edat) || max(max(abs(edat{i_set}))) < 1e-5
-    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
-    costflag(i_set) = 1;                            % Cost is root mean square difference
-  else
-    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
-    costflag(i_set) = 0;                            % Cost is sqrt(chi-square)
-  end
-
 end
+cost_opt = cost
 
-% Finds a way to make sure cost, temperature c, and CF parameters are commensurable with
-%   each other -> cost should be of order unity, CF pars steps of order 0.1 and c order 10.
-% Calculates a factor to multiply the cost by to get a sensible change in CF parameters
-%   with each perturbation.
-cfpar_steps = sum(range)/length(range)/markov_l;    % Average change in CF par / step.
+% Calculates a starting temperature where at least half of all transitions are accepted.
+cfpar_steps = sum(range)/length(range)/NT;          % Average change in CF par / step.
+[T0,Tsa] = deal( saficf_startc(xdat,ydat,edat,J,T,Ei,freq,ptgpstr,elas_peak,cfpar_steps) );
 
-stopflag = 0;
-iteration = 1;
+% More Simulated Annealing Parameters, after Corana et. al. 
+Vopt = V; cost_opt = cost;           % Optimized CF parameters and cost function
+n_u = zeros(1,n);                    % u=1,...,n; n_u is a step variation count.
+f_ustar = ones(1,Nepsilon) .* cost;  % u=0,-1,...,-Nepsilon+1; stores cost of each T step.
 
-[cstart,cost_factor] = saficf_startc(xdat,ydat,edat,J,T,Ei,freq,ptgpstr,elas_peak,cfpar_steps);
-cost = cost * cost_factor;
-c = cstart;
-disp('  Cost        c         intfac');
-
-while stopflag < 5                                  % Terminates schedule after 5 cycles
-  transflag = 0;                                    %   where energy(cost) has not changed
-  disp([cost c intfac]);
-  for ind_markov = 1:markov_l                       % Set markov chain length arbitrarily
-    cost_new = 0;                                   % Resets cost value to sum over datasets
-    Vnew     = saficf_perturb(V,c,range);           % Generates new configuration
-    intfac_n = abs( intfac + lrnd(c)/10 );          %   and new intensity factor
-    for i_set = 1:num_dataset
-      spectmp = saficf_genspec(J,T(i_set),Vnew, ...
-        xdat{i_set},Ei(i_set),freq(i_set),lineshape{i_set});
-      spec_new = elas_peak{i_set} ...               % Add elastic and inelastic peaks
-                 + spectmp.*intfac_n;
-      if costflag(i_set)                            % Calculates new cost 
-        cost_new = cost_new + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
-      else
-        cost_new = cost_new + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
+%while ~terminating_criterion 
+% ------------------------------------------------------------------------------------------------- %
+% Steps 1-4                                                                                            %
+% ------------------------------------------------------------------------------------------------- %
+for k = 0:maxTstep
+  tic
+  for m = 1:NT                                             % One m-loop takes ~25min!
+   %m
+   %tic
+   for j = 1:Ns
+    for h = 1:n
+      eh = zeros(1,n); eh(n) = 1;
+      xprime = x + ( (rand-.5)*2*v(h) .* eh );             % Step 1
+      if h<n
+        if xprime(h) < -range | xprime(h) > range
+          break;                                           % Step 2
+        end
+      elseif xprime(h)<infac_ll | xprime(h)>infac_hl
+        break;
       end
-    end
-    cost_new = cost_new * cost_factor;
-    if saficf_accept(cost_new-cost,c)               % Acceptance criteria is Fermi-Dirac
-      V = Vnew;
-      cost = cost_new;
-      intfac = intfac_n;
-      transflag = 1;
-    end
-  end
-  c = saficf_schedul(cstart,iteration);
-  iteration = iteration + 1;
-  if transflag
-    stopflag = 0;
-  else
-    stopflag = stopflag + 1
-  end
-  if c/cstart < 1e-3 || iteration > 1000            % Terminates after temperature falls
-    stopflag = 6;                                   %   by 1000 or 1000 iterations.
-  end
+
+% Calculates cost
+      cost_new = 0;                                        % Resets cost value to sum over datasets
+      for i_set = 1:num_dataset
+        if (strcmp(ptgpstr,'cubic') | strncmp(ptgpstr,'o',1) | strncmp(ptgpstr,'t',1))
+          Vnew = {zeros(1,5);[0 0 0 0 xprime(1) 0 0 0 5*xprime(1)]; ...
+                  [zeros(1,6) xprime(2) 0 0 0 -21*xprime(2) 0 0]};
+        else
+          for i_s = 1:size(V,2)                            % i_s indexes sites.
+            vd(i_s,find(vd(i_s,:))) = xprime(1:nV(i_s)); 
+            Vnew(:,1) = {vd(i_s,1:5);vd(i_s,6:14);vd(i_s,15:27)};
+          end
+        end
+        spectmp = saficf_genspec(J,T(i_set),Vnew,xdat{i_set},Ei(i_set),freq(i_set),lineshape{i_set});
+        spec_new = elas_peak{i_set} + spectmp.*x(n);       % Add elastic and inelastic peaks
+                   
+        if costflag(i_set)                                 % Calculates new cost 
+          cost_new = cost_new + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
+        else
+          cost_new = cost_new + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
+        end
+      end
+% Acceptance test
+      if (cost_new<cost) | (rand < exp((cost-cost_new)/Tsa)) 
+        x = xprime;
+        cost = cost_new;
+        n_u(h) = n_u(h) + 1;
+      end
+      if (cost<cost_opt)
+        x_opt = x; 
+        V_opt = Vnew;
+        cost_opt = cost;
+      end;
+
+    end                                                    % Step 4: add 1 to h; if h<=n goto 1
+   end                                                     %         else h=0; add 1 to j
+
+% ------------------------------------------------------------------------------------------------- %
+% Step 5: Updates step vector
+% ------------------------------------------------------------------------------------------------- %
+   for i_u = 1:n
+     if n_u(i_u) > (0.6*Ns)
+       vprime(i_u) = v(i_u) * (1 + ci(i_u)*(n_u(i_u)/Ns - 0.6)/0.4 );
+     elseif n_u(i_u) < (0.4*Ns)
+       vprime(i_u) = v(i_u) / (1 + ci(i_u)*(0.4 - n_u(i_u)/Ns)/0.4 );
+     else
+       vprime(i_u) = v(i_u);
+     end
+   end
+   v = vprime;
+   n_u = zeros(1,n);
+
+   %toc
+  end                                                      % Step 5: set j=0; add 1 to m;
+
+% ------------------------------------------------------------------------------------------------- %
+% Step 6: Reduce temperature
+% ------------------------------------------------------------------------------------------------- %
+  Tsa = rT * Tsa
+  cost_opt
+  f_ustar(k+Nepsilon+1) = cost;
+
   for i_set = 1:num_dataset
     if ~isempty(handle) && ishandle(handle(i_set))  % Updates graphs
       xi = min(xdat{i_set}):0.1:max(xdat{i_set});
@@ -118,7 +194,30 @@ while stopflag < 5                                  % Terminates schedule after 
       drawnow;
     end
   end
-end
+  
+% ------------------------------------------------------------------------------------------------- %
+% Step 7: Determine terminating criterion
+% ------------------------------------------------------------------------------------------------- %
+  term_fl = 0;
+  for i_e = 1:Nepsilon
+    if f_ustar(k+Nepsilon+1)-f_ustar(k+Nepsilon+1-i_e) < epsilon
+      term_fl = term_fl + 1;
+    end
+  end
+  if (f_ustar(k+Nepsilon+1)-cost_opt < epsilon) && term_fl==Nepsilon
+    break;                                                 % Ends search
+  else
+    x = x_opt;
+    V = V_opt;
+    cost = cost_opt;
+  end
+
+  toc
+end                                                        % Step 6: set m=0; add 1 to k
+
+% ------------------------------------------------------------------------------------------------- %
+% Post-SA processing 
+% ------------------------------------------------------------------------------------------------- %
 
 % Draws final graphs
 for i_set = 1:num_dataset
