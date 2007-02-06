@@ -27,7 +27,7 @@ num_dataset = length(T);
 % Initialization                                                                                    %
 % ------------------------------------------------------------------------------------------------- %
 % Sets an intensity factor for the inelastic peaks.
-intfac = rand*max(ydat{1})/10;
+[intfac,if0] = deal(rand*max(ydat{1})/10);
 
 % Generate starting values for the CF parameters, and their max/min ranges.
 V = saficf_genstart(ptgpstr,maxsplit,J);
@@ -44,12 +44,12 @@ else
     nV(i_s) = length(find(vd(i_s,:)));                % Number of parameters needed per site.
     x0 = [x0 vd(i_s,find(vd(i_s,:)))];                % Starting point (set of parameters)
   end
-  [x,x0] = deal([x0 intfac]);
+  [x,x0] = deal([x0 intfac]); 
   n = sum(nV) + 1;                                    % Number of parameters needed.
 end
 
 % Generate a starting step vector
-[v,v0] = deal( (rand(1,n)-.5).*2 .* x0 );             % some fraction of starting point values!
+[v,v0] = deal( [(rand(1,n-1)-.5) rand*5].*2e-1.*x0);  % some fraction of starting point values!
 
 % Some Simulated Annealing Parameters, after Corana et. al. 
 Ns = 20;             % Number of passes to ensure step sizes give acceptance rate of approx 50%
@@ -93,7 +93,7 @@ cost_opt = cost
 
 % Calculates a starting temperature where at least half of all transitions are accepted.
 cfpar_steps = sum(range)/length(range)/NT;          % Average change in CF par / step.
-[T0,Tsa] = deal( saficf_startc(xdat,ydat,edat,J,T,Ei,freq,ptgpstr,elas_peak,cfpar_steps) );
+[T0,Tsa] = deal( saficf_startc(xdat,ydat,edat,J,T,Ei,freq,ptgpstr,elas_peak,cfpar_steps)*10 );
 
 % More Simulated Annealing Parameters, after Corana et. al. 
 Vopt = V; cost_opt = cost;           % Optimized CF parameters and cost function
@@ -111,13 +111,13 @@ for k = 0:maxTstep
    %tic
    for j = 1:Ns
     for h = 1:n
-      eh = zeros(1,n); eh(n) = 1;
+      eh = zeros(1,n); eh(h) = 1;
       xprime = x + ( (rand-.5)*2*v(h) .* eh );             % Step 1
       if h<n
         if xprime(h) < -range | xprime(h) > range
           break;                                           % Step 2
         end
-      elseif xprime(h)<infac_ll | xprime(h)>infac_hl
+      elseif xprime(h)<infac_ll*if0 | xprime(h)>infac_hl*if0
         break;
       end
 
@@ -134,12 +134,12 @@ for k = 0:maxTstep
           end
         end
         spectmp = saficf_genspec(J,T(i_set),Vnew,xdat{i_set},Ei(i_set),freq(i_set),lineshape{i_set});
-        spec_new = elas_peak{i_set} + spectmp.*x(n);       % Add elastic and inelastic peaks
+        spec_new{i_set} = elas_peak{i_set} + spectmp.*x(n);% Add elastic and inelastic peaks
                    
         if costflag(i_set)                                 % Calculates new cost 
-          cost_new = cost_new + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
+          cost_new = cost_new + sqrt( sum( (spec_new{i_set} - ydat{i_set}).^2 ) );
         else
-          cost_new = cost_new + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
+          cost_new = cost_new + sqrt( sum( (spec_new{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
         end
       end
 % Acceptance test
@@ -151,7 +151,7 @@ for k = 0:maxTstep
       if (cost<cost_opt)
         x_opt = x; 
         V_opt = Vnew;
-        cost_opt = cost;
+        cost_opt = cost
       end;
 
     end                                                    % Step 4: add 1 to h; if h<=n goto 1
@@ -195,6 +195,7 @@ for k = 0:maxTstep
     end
   end
   
+  toc
 % ------------------------------------------------------------------------------------------------- %
 % Step 7: Determine terminating criterion
 % ------------------------------------------------------------------------------------------------- %
@@ -212,7 +213,6 @@ for k = 0:maxTstep
     cost = cost_opt;
   end
 
-  toc
 end                                                        % Step 6: set m=0; add 1 to k
 
 % ------------------------------------------------------------------------------------------------- %
