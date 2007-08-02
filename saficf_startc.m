@@ -44,7 +44,7 @@ for ind_conf = 1:10
     intfac{i_set} = rand * max(ydat{i_set}) / 10;
     spectmp = saficf_genspec(J,T(i_set),V,xdat{i_set},Ei(i_set),freq(i_set),'fgauss');
     spec = elas_peak{i_set} ...                   % Add elastic and inelastic peaks
-           + spectmp.*intfac{i_set};
+           + spectmp(:).*intfac{i_set};
     if costflag                                   % Calculates new cost 
       cost(ind_conf) = cost(ind_conf) + sqrt( sum( (spec - ydat{i_set}).^2 ) );
     else

@@ -47,7 +47,7 @@ lsq(1) = sum( (feval(@fvoigt,x,pars_voigt) - y).^2 );
 lsq(2) = sum( (feval(@fgauss,x,pars_gauss) - y).^2 );
 lsq(3) = sum( (feval(@florr ,x,pars_gauss) - y).^2 );
 switch find(lsq == min(lsq))
-  case 1; pars = {'fvoigt',pars_voigt};
+  case 1; pars = {'fvoigt',pars_voigt}; if pars_voigt(4)>1; pars_voigt(4)=1; end; 
   case 2; pars = {'fgauss',pars_gauss};
   case 3; pars = {'florr' ,pars_gauss};
 end

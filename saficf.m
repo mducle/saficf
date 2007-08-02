@@ -26,6 +26,10 @@ num_dataset = length(T);
 % ------------------------------------------------------------------------------------------------- %
 % Initialization                                                                                    %
 % ------------------------------------------------------------------------------------------------- %
+
+% Resets the state of the random number generator
+rand('state',sum(100*clock));
+
 % Sets an intensity factor for the inelastic peaks.
 [intfac,if0] = deal(rand*max(ydat{1})/10);
 
@@ -54,6 +58,7 @@ end
 % Some Simulated Annealing Parameters, after Corana et. al. 
 Ns = 20;             % Number of passes to ensure step sizes give acceptance rate of approx 50%
 NT = max([100,5*n]); % Number of steps at each temperature to ensure thermal equilibrium.
+NT = min([20,5*n]); % Number of steps at each temperature to ensure thermal equilibrium.
 Nepsilon = 4;        % Number of successive temperature reductions before testing for stopping fit.
 ci = ones(1,n).*2;   % Step varying criterion intial value
 rT = 0.85;           % Temperature reduction coefficient
@@ -68,16 +73,27 @@ for i_set = 1:num_dataset
   elas_peak{i_set} = feval(lineshape{i_set},xdat{i_set},elas_pars{i_set}); 
   % Generates a spectrum with inelastic peaks from the starting CF parameters.  
   spectmp = saficf_genspec(J,T(i_set),V,xdat{i_set},Ei(i_set),freq(i_set),lineshape{i_set});
-  spec{i_set} = elas_peak{i_set} + spectmp.*intfac;
+  spec{i_set} = elas_peak{i_set} + spectmp(:).*intfac;
+  % Finds the peak positions and calculates the cost of the difference of the guess CF transition energies.
+  [npeaks(i_set),xpeaks{i_set},ypeaks{i_set}] = saficf_findpeaks(xdat{i_set},ydat{i_set},edat{i_set});
+  pks = [];
+  for ind_sites = 1:size(V,2)
+    pks = [pks; cflvls(norm_cfhmltn(4,V(:,ind_sites)),10,[0 1])]; 
+  end
+  pks(find(pks(:,2)<1e-2),:) = []; 
+  xpks = pks(:,1); 
+  for i = 1:length(xpks); 
+    omt(:,i) = xpks(i)-xpeaks{i_set}; 
+  end; 
+  costp = sqrt(sum(min(omt.^2)));
   % Calculates the initial cost
   if isempty(edat) || max(max(abs(edat{i_set}))) < 1e-5
-    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) );
+    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ) ) + costp;
     costflag(i_set) = 1;                            % Cost is root mean square difference
   else
-    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
+    cost = cost + sqrt( sum( (spec{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) ) + costp;
     costflag(i_set) = 0;                            % Cost is sqrt(chi-square)
   end
-  % Draws initial generated spectra onto respective axes.
   if ~isempty(handle) && ishandle(handle(i_set))
     xi = min(xdat{i_set}):0.1:max(xdat{i_set});
     spcp = saficf_genspec(J,T(i_set),V,xi,Ei(i_set),freq(i_set),lineshape{i_set});
@@ -133,13 +149,20 @@ for k = 0:maxTstep
             Vnew(:,1) = {vd(i_s,1:5);vd(i_s,6:14);vd(i_s,15:27)};
           end
         end
-        spectmp = saficf_genspec(J,T(i_set),Vnew,xdat{i_set},Ei(i_set),freq(i_set),lineshape{i_set});
-        spec_new{i_set} = elas_peak{i_set} + spectmp.*x(n);% Add elastic and inelastic peaks
+        [sptmp,pk] = saficf_genspec(J,T(i_set),Vnew,xdat{i_set},Ei(i_set),freq(i_set),lineshape{i_set});
+        spec_new{i_set} = elas_peak{i_set} + sptmp'.*x(n); % Add elastic and inelastic peaks
+	% Calculates the cost of the difference peak positions and of the guess CF transition energies.
+        pk(find(pk(:,2)<1e-2),:) = []; 
+        xpk = pk(:,1); 
+        for i = 1:length(xpk); 
+          omt(:,i) = xpk(i)-xpeaks{i_set}; 
+        end; 
+        costp = sqrt(sum(min(omt.^2)));
                    
         if costflag(i_set)                                 % Calculates new cost 
-          cost_new = cost_new + sqrt( sum( (spec_new{i_set} - ydat{i_set}).^2 ) );
+          cost_new = cost_new + sqrt( sum( (spec_new{i_set} - ydat{i_set}).^2 ) ) + costp;
         else
-          cost_new = cost_new + sqrt( sum( (spec_new{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) );
+          cost_new = cost_new + sqrt( sum( (spec_new{i_set} - ydat{i_set}).^2 ./ (edat{i_set}.^2) ) ) + costp;
         end
       end
 % Acceptance test
@@ -151,7 +174,7 @@ for k = 0:maxTstep
       if (cost<cost_opt)
         x_opt = x; 
         V_opt = Vnew;
-        cost_opt = cost
+        cost_opt = cost;
       end;
 
     end                                                    % Step 4: add 1 to h; if h<=n goto 1
@@ -169,9 +192,11 @@ for k = 0:maxTstep
        vprime(i_u) = v(i_u);
      end
    end
+   
    v = vprime;
    n_u = zeros(1,n);
 
+   %cost_opt
    %toc
   end                                                      % Step 5: set j=0; add 1 to m;
 
@@ -206,6 +231,7 @@ for k = 0:maxTstep
     end
   end
   if (f_ustar(k+Nepsilon+1)-cost_opt < epsilon) && term_fl==Nepsilon
+    endex = 1
     break;                                                 % Ends search
   else
     x = x_opt;
