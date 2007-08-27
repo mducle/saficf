@@ -81,7 +81,7 @@ for i_set = 1:num_dataset
     pks = [pks; cflvls(norm_cfhmltn(4,V(:,ind_sites)),10,[0 1])]; 
   end
   pks(find(pks(:,2)<1e-2),:) = []; 
-  xpks = pks(:,1); 
+  xpks = pks(:,1); omt = [];
   for i = 1:length(xpks); 
     omt(:,i) = xpks(i)-xpeaks{i_set}; 
   end; 
@@ -153,7 +153,7 @@ for k = 0:maxTstep
         spec_new{i_set} = elas_peak{i_set} + sptmp'.*x(n); % Add elastic and inelastic peaks
 	% Calculates the cost of the difference peak positions and of the guess CF transition energies.
         pk(find(pk(:,2)<1e-2),:) = []; 
-        xpk = pk(:,1); 
+        xpk = pk(:,1); omt = [];
         for i = 1:length(xpk); 
           omt(:,i) = xpk(i)-xpeaks{i_set}; 
         end; 
@@ -173,7 +173,7 @@ for k = 0:maxTstep
       end
       if (cost<cost_opt)
         x_opt = x; 
-        V_opt = Vnew;
+        V_opt = Vnew
         cost_opt = cost;
       end;
 
