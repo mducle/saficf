@@ -45,20 +45,37 @@ if iscell(VHcf) && length(VHcf)==4                     % Cell array of J and CF 
   end
   if isvector(VHcf{2}) && length(VHcf{2})==5
     V2 = VHcf{2};
+  elseif iscell(VHcf{2}) && length(VHcf{2})==2 && length(VHcf{2}{1})==5
+    V2cfl = length(VHcf{2});
   else
     error('If input VHcf is cell, second cell must be vector length 5, V2');
   end
   if isvector(VHcf{3}) && length(VHcf{3})==9
     V4 = VHcf{3};
+  elseif iscell(VHcf{3}) && length(VHcf{3})==2 && length(VHcf{3}{1})==9
+    V4cfl = length(VHcf{3});
   else
     error('If input VHcf is cell, second cell must be vector length 9, V4');
   end
   if isvector(VHcf{4}) && length(VHcf{4})==13
     V6 = VHcf{4};
+  elseif iscell(VHcf{4}) && length(VHcf{4})==2 && length(VHcf{4}{1})==13
+    V6cfl = length(VHcf{4});
   else
     error('If input VHcf is cell, second cell must be vector length 13, V6');
   end
-  peaks = cflvls(cf_hmltn(J,V2,V4,V6),T,[0 1]);
+  if exist('V2cfl') && exist('V4cfl') && exist('V6cfl') && V2cfl==V4cfl && V4cfl==V6cfl
+    peaks = [];
+    for iset = 1:V2cfl
+      if length(VHcf{2}{iset})==5 && length(VHcf{3}{iset})==9 && length(VHcf{4}{iset})==13
+        peaks = [peaks; cflvls(cf_hmltn(J,VHcf{2}{iset},VHcf{3}{iset},VHcf{4}{iset}),T,[0 1])];
+      else
+        error(['CF parameters set number ' iset ' have wrong number of parameters']);
+      end
+    end
+  else
+    peaks = cflvls(cf_hmltn(J,V2,V4,V6),T,[0 1]);
+  end
 elseif size(VHcf,1)==size(VHcf,2)                      % square matrix - CF Hamiltonian
   peaks = cflvls(VHcf,T,[0 1]);
 elseif size(VHcf,2)==2                                 % two column vector peaks/matrix element pairs
@@ -79,22 +96,13 @@ if ~exist('total_area')
   total_area = quad(spline_spectra,min(xdat),max(xdat));
 end
 
-% Puts the peaks/matrix elements into energy transfer order
-%for ip = 1:size(peaks,1)
-%  peakpairs{i} = peaks(ip,:);
-%end
-%sort_en = peakpairs(sort(peaks(:,1)));
-%for ip = 1:size(peaks,1)
-%  sort_peaks(ip,:) = sort_en{ip};
-%end
-
-% Gets rid of all transitions higher than Ei
-%peaks(find(peaks(:,1)>Ei),:) = [];
-
 % Scales the transition matrix elements to the area of the inelastic spectra.
 inelas_area = total_area - elas_area;
-total_me = sum( peaks(find(peaks(:,1)<Ei),2) );       % Want only matrix elements of peaks < Ei
+pkst = peaks(find(abs(peaks(:,1))<Ei),:);              % Want only matrix elements of peaks < Ei
+pkst = pkst( find(pkst(:,2) > sum(pkst(:,2))/200) ,:); % Want only transtions with large mat. el.
+total_me = sum( pkst(:,2) );
 scale_factor = total_me / inelas_area;
+peaks = sortrows(pkst);
 
 % Finds the integrated area for each peak
 pars = [1 elas_pars(1:3)']; const = [0 0 0 0];

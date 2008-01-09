@@ -77,7 +77,8 @@ else
   const = [0 ones(1,3*n)*0,1];
 end
 
-[fitpars,stdev] = speclsqr(xdat,ydat,edat,estpars,const,@saficf_peakfitfunc);
+%[fitpars,stdev] = speclsqr(xdat,ydat,edat,estpars,const,@saficf_peakfitfunc);
+[fitpars,stdev] = saficf_salsqr(xdat,ydat,edat,estpars,const,@saficf_peakfitfunc);
 
 figure; errorbar(xdat,ydat,edat); hold all; plot(xdat,saficf_peakfitfunc(xdat,fitpars)); hold off;
 

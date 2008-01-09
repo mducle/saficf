@@ -57,8 +57,8 @@ end
 
 % Some Simulated Annealing Parameters, after Corana et. al. 
 Ns = 20;             % Number of passes to ensure step sizes give acceptance rate of approx 50%
-NT = max([100,5*n]); % Number of steps at each temperature to ensure thermal equilibrium.
-NT = min([20,5*n]); % Number of steps at each temperature to ensure thermal equilibrium.
+%NT = max([100,5*n]);% Number of steps at each temperature to ensure thermal equilibrium.
+NT = min([20,5*n]);  % Number of steps at each temperature to ensure thermal equilibrium.
 Nepsilon = 4;        % Number of successive temperature reductions before testing for stopping fit.
 ci = ones(1,n).*2;   % Step varying criterion intial value
 rT = 0.85;           % Temperature reduction coefficient
