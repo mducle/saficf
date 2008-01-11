@@ -100,10 +100,10 @@ Jp = Jmat(:,:,4);  % J+   N.B. |J |  + |J |  = 2( |J |  + |J |  )
 Jm = Jmat(:,:,5);  % J-          +       -          x       y
 
 % Calculates the dipole matrix elements (prop. to scattered inelastic neutron intensity)
-Trans = (V'*Jx*V).*conj(V'*Jx*V) + (V'*Jy*V).*conj(V'*Jy*V) + (V'*Jz*V).*conj(V'*Jz*V);
+Trans = ( (V'*Jx*V).*conj(V'*Jx*V) + (V'*Jy*V).*conj(V'*Jy*V) + (V'*Jz*V).*conj(V'*Jz*V) ) .* (2/3);
 
 if exist('gJ')
-  Trans = ( (2/3)*4*pi*(r0*gJ)^2/2 ) .* Trans;
+  Trans = ( 4*pi*(r0*gJ/2)^2 ) .* Trans;
 end
 
 % Calculates the partition function.
