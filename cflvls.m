@@ -1,10 +1,12 @@
-function peaks = cflvls(Hcf,T,flags,nt)
+function peaks = cflvls(Hcf,T,flags,nt,A)
 % cflvls - Plots the CF energy levels and calculates its dipole matrix elements.
 %
 % Syntax:  peaks = cflvls(Hcf,flag,T,nt)
 %
 % Inputs:  Hcf   - a (2J+1)x(2J+1) matrix representing the CF Hamiltonian in the |J,Jz> 
-%                  basis.
+%                  basis. Alternative, a cell array {J B} or {A B}, where A = [L S J] 
+%                  B = {B2 B4 B6} contains the angular momentum quantum numbers and
+%                  crystal field parameters of the magnetic ions. 
 %          T     - a scalar = the temperature in Kelvin at which to calculate the dipole 
 %                  matrix element. If this is omitted, it is automatically set to zero K.
 %          flags - flags to control the plotting and output formats. 
@@ -17,16 +19,22 @@ function peaks = cflvls(Hcf,T,flags,nt)
 %                  or a vector with the levels to plot - e.g. nt = [1 5] to plot ground 
 %                  state and 5th excited state.
 %                  If omitted, the function will just plot the ground state transitions.
+%          A     - vector [L S J] with the angular momentum quantum numbers of the
+%                  magnetic ion to be calculated. If the last input argument is a three
+%                  vector, the function will calculate the transition cross-section in
+%                  barns instead of just the transition dipole matrix elements.
 %
 % Outputs: peaks - is either a two column vector with the energy transfer and associated
 %                  dipole matrix element, or a complex number vector with the real part
 %                  as the energy and the imaginery part as the dipole matrix element.
 
 % By Duc Le - Thu Aug 10 00:33:52 BST 2006 - duc.le@ucl.ac.uk
-% mdl - updated 060817: improved complex output so `plot(cflvls(Hcf,T,[0 0])` works 
 
-% This file is part of the SAfiCF package. 
-% Licenced under the GNU GPL v2 or later. 
+% mdl - updated 060817: improved complex output so `plot(cflvls(Hcf,T,[0 0])` works 
+%     - updated 070123: fixed mag_op_j(J) error [was mag_op_J(4)] and added Hcf checks
+% mdl - updated 070126: added transition cross-section (in Barns) output.
+
+% This file is part of the SAfiCF package. Licenced under the GNU GPL v2 or later. 
 
 % Physical constants. Taken from NIST Reference on Constants, Units, and Uncertainty, 
 % http://physics.nist.gov/cuu/Constants/
@@ -35,11 +43,48 @@ k_B   = 1.3806505e-23;     % J/K     - Boltzmann constant
 Q_e   = 1.60217653e-19;    % C       - Charge of electron
 k_Be  = k_B/(Q_e/1000);    % meV/K   - Boltzmann constant
 N_A   = 6.0221415e23;      % Avogadro's number
+r0    = 0.5291772108;      % pm/100  - Borh radius.
+%r0 = .53822671531422537349; % For comparison with FOCUS and cfield by Peter Fabi.
 
 % Checks for optional arguments and flags
-if ~exist('flags'); flags = [1 1]; end
-if ~exist('nt');    nt    = 1;     end
-if ~exist('T');     T     = 1e-10; end
+if ~exist('Hcf')
+  error('You must supply either a CF Hamiltonian matrix or a cell array {J B}.');
+elseif iscell(Hcf)
+  A = Hcf{1}; B = Hcf{2};
+  if isscalar(A)
+    J = A; Hcf = cf_hmltn(J,B);
+  elseif length(A)==3;
+    L = A(1); S = A(2); J = A(3);
+    gJ = 1.5 + (S*(S+1) - L*(L+1)) / (2*J*(J+1));
+    Hcf = cf_hmltn(J,B);
+  end
+elseif isnumeric(Hcf)
+% Checks that CF Hamiltonian is square and hermitian
+  n = size(Hcf,1);
+  if n ~= size(Hcf,2)
+    error('CF Hamiltonian is not square!');
+  elseif n<2
+    error('CF Hamiltonian too small');
+  end
+  J = (n-1)/2;
+  if sum(sum(Hcf-Hcf')) > 1e-10
+    error('CF Hamiltonian is not hermitian!');
+  end
+else
+  error(['The first argument must be a square matrix or cell array {A B} or {J B}' ...
+         'where A is a 3-vector, B = {B2 B4 B6} are the CF parameters, J is a scalar']);
+end
+
+% Checks optional input arguments
+if ~exist('flags'); flags = [0 1]; elseif isvector(flags) & length(flags)==3; Ap = flags; end
+if ~exist('nt');    nt    = 1;     elseif isvector(nt)    & length(nt)==3;    Ap = nt;    end
+if ~exist('T');     T     = 1e-10; elseif isvector(T)     & length(T)==3;     Ap = T;     end
+
+if exist('A') && isvector(A) && length(A)==3
+  gJ = 1.5 + (A(2)*(A(2)+1) - A(1)*(A(1)+1)) / (2*A(3)*(A(3)+1));
+elseif exist('Ap')  
+  gJ = 1.5 + (Ap(2)*(Ap(2)+1) - Ap(1)*(Ap(1)+1)) / (2*Ap(3)*(Ap(3)+1)); 
+end
 
 % Diagonalises the CF Hamiltonian and cleans up the eigenvectors and eigenvalues.
 [V,E] = eig(Hcf);
@@ -47,7 +92,7 @@ V(find(abs(V)<3e-3)) = 0;
 E = diag(E) - min(min(E));
 
 % Calculates the magnetic operators in the |J,Jz> basis
-Jmat = mag_op_j(4);
+Jmat = mag_op_j(J);
 Jx = Jmat(:,:,1);   
 Jy = Jmat(:,:,2); 
 Jz = Jmat(:,:,3);  %               2       2          2       2 
@@ -55,7 +100,11 @@ Jp = Jmat(:,:,4);  % J+   N.B. |J |  + |J |  = 2( |J |  + |J |  )
 Jm = Jmat(:,:,5);  % J-          +       -          x       y
 
 % Calculates the dipole matrix elements (prop. to scattered inelastic neutron intensity)
-Trans = (V'*Jx*V).*conj(V'*Jx*V) + (V'*Jy*V).*conj(V'*Jy*V) + (V'*Jz*V).*conj(V'*Jz*V);
+Trans = ( (V'*Jx*V).*conj(V'*Jx*V) + (V'*Jy*V).*conj(V'*Jy*V) + (V'*Jz*V).*conj(V'*Jz*V) ) .* (2/3);
+
+if exist('gJ')
+  Trans = ( 4*pi*(r0*gJ/2)^2 ) .* Trans;
+end
 
 % Calculates the partition function.
 Z = sum(exp(-E./(k_Be*T)));
@@ -75,13 +124,13 @@ end
 peaks(:,2) = Trans(:);
 
 % Eliminates repeated entries due to degenerate levels.
-peaks = peaks(find(abs(peaks(:,2))>1e-3),:);
+peaks = peaks(find(abs(peaks(:,2))>1e-10),:);
 for ind_i = 1:size(peaks,1)
   for ind_j = 1:size(peaks,1)
     if(ind_i~=ind_j) 
-      if (abs(peaks(ind_i,:)-peaks(ind_j,:))<1e-3)
+      if (abs(peaks(ind_i,:)-peaks(ind_j,:))<1e-10)
         peaks(ind_i,:) = [0 0];
-        break;
+        %break;
       end
     end
   end
@@ -90,10 +139,10 @@ end
 for ind_i = 1:size(peaks,1)
   for ind_j = 1:size(peaks,1)
     if(ind_i~=ind_j) 
-      if (abs(peaks(ind_i,1)-peaks(ind_j,1))<1e-5) && (abs(peaks(ind_i,2)-peaks(ind_j,2))>1e-1) 
+      if (abs(peaks(ind_i,1)-peaks(ind_j,1))<1e-10) && (abs(peaks(ind_i,2)-peaks(ind_j,2))>1e-1) 
         peaks(ind_j,2) = peaks(ind_i,2) + peaks(ind_j,2);
         peaks(ind_i,:) = [0 0];
-        break;
+        %break;
       end
     end
   end
@@ -135,7 +184,7 @@ if flags(1)
   Trans(find(abs(Trans)<1e-2))=0;
 
   % Determines which transitions to plot.
-  if size(nt,2) ~= 1
+  if ~isscalar(nt)
     io = nt;
   else
     io = 1:nt;

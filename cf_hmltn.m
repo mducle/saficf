@@ -145,10 +145,10 @@ if sum(find(abs(find(B2)-3)==1)) | sum(find(abs(find(B4)-5)==1)) | sum(find(abs(
     tj41 = threej([J 4 J; -Mj  1 Mjp]);     tj4m1 = threej([J 4 J; -Mj -1 Mjp]);
     tj61 = threej([J 6 J; -Mj  1 Mjp]);     tj6m1 = threej([J 6 J; -Mj -1 Mjp]);
     % Rank 2
-    M(i,j) = M(i,j) + (-1)^(J-Mj)   * tj21  * RM2 * B2(2) *-sqrt(-6);
-    M(i,j) = M(i,j) - (-1)^(J-Mj-1) * tj2m1 * RM2 * B2(2) *-sqrt(-6);
-    M(i,j) = M(i,j) + (-1)^(J-Mj)   * tj21  * RM2 * B2(4) *-sqrt(6);
-    M(i,j) = M(i,j) + (-1)^(J-Mj+1) * tj2m1 * RM2 * B2(4) *-sqrt(6);
+    M(i,j) = M(i,j) + (-1)^(J-Mj)   * tj21  * RM2 * B2(2) *-1/sqrt(-6);
+    M(i,j) = M(i,j) - (-1)^(J-Mj-1) * tj2m1 * RM2 * B2(2) *-1/sqrt(-6);
+    M(i,j) = M(i,j) + (-1)^(J-Mj)   * tj21  * RM2 * B2(4) *-1/sqrt(6);
+    M(i,j) = M(i,j) + (-1)^(J-Mj+1) * tj2m1 * RM2 * B2(4) *-1/sqrt(6);
     % Rank 4
     M(i,j) = M(i,j) + (-1)^(J-Mj)   * tj41  * RM4 * B4(4) *-2/sqrt(-5);
     M(i,j) = M(i,j) - (-1)^(J-Mj-1) * tj4m1 * RM4 * B4(4) *-2/sqrt(-5);

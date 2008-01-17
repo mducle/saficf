@@ -1,16 +1,18 @@
-function [xdat,ydat,edat,axeshandle] = saficf_getdata()
+function [xdat,ydat,edat,axeshandle] = saficf_getdata(handle)
 
 % Reference: fitgetdata.m from the custom fitting routines used on ID20, by SPC, SBW.
 
-disp('Click on figure with spectra');
-waitforbuttonpress;
-handle = gco;
+if ~exist('handle')
+  disp('Click on figure with spectra');
+  waitforbuttonpress;
+  handle = gco;
+end
 
 % Checks that the current object is a line, errorbar or something else.
 if strcmp(get(handle,'Type'),'line')|strcmp(get(handle,'Type'),'hggroup');  % hggroup == errorbar
   linehandle = handle;
 else
-  grphdat = [findobj(handle,'Type','line');findobj(handle,'Type','hggroup')];
+  grphdat = [findobj(handle,'Type','hggroup');findobj(handle,'Type','line')];
   if isempty(lines)
     disp(['No line or surface objects in: ',handle]);
     return

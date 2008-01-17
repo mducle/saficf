@@ -4,7 +4,7 @@ function out = fvoigt(xdat,pars)
 % Syntax:  out  = fvoigt(xdat,pars)
 %
 % Inputs:  xdat - vector - is the ordinate at which to calculate
-%          pars - vector - [centre fwhm area lfrac] - lfrac is lorentzian fraction
+%          pars - vector - [centre fwhm height lfrac] - lfrac is lorentzian fraction
 %
 % Outputs: out  - vector - is the abscisa which is calculated.
 
@@ -13,9 +13,8 @@ function out = fvoigt(xdat,pars)
 % Makes equation looks better
 c = pars(1);
 w = pars(2);
-a = pars(3);
+h = pars(3);
 f = pars(4);
 x = xdat(:);
 
-out = (a/w/ (f*pi/2 + (1-f)*sqrt(pi/4/log(2)) )) ...
-      .* ( f./(1 + 4*((x-c)/w).^2) + (1-f)*exp(-4*log(2)*((x-c)/w).^2) ); 
+out  = h .* ( f./(1+4*((x-c)/w).^2) + (1-f).*exp(-4.*log(2).*((x-c)/w).^2) );

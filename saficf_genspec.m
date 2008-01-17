@@ -1,4 +1,4 @@
-function spec = saficf_genspec(J,T,V,Et,Ei,freq,lineshape)
+function [spec,peaks] = saficf_genspec(J,T,V,Et,Ei,freq,lineshape)
 % Generates an inelastic neutron spectra from a set of Fabi normalised CF parameters
 %
 % Syntax:  spec = saficf_genspec(J,T,V,Et,Ei,freq)
@@ -13,16 +13,24 @@ function spec = saficf_genspec(J,T,V,Et,Ei,freq,lineshape)
 %
 % Outputs: spec      - vector     - the inelastic spectrum evaluated at Et points.
 
-Hcf = norm_cfhmltn(J,V);
-peaks = cflvls(Hcf,T,[0 1]);
+%-----------------------------------------------------------------------------------%
+f = 0.1;   % Lorentzian factor for pseudo-voigt lineshape. 
+%-----------------------------------------------------------------------------------%
+%TODO: Fix so that can vary/fit lorentzian factor rather than have constant as here
+
+peaks = [];
+for ind_sites = 1:size(V,2)
+  Hcf = norm_cfhmltn(J,V(:,ind_sites));
+  peaks = [peaks; cflvls(Hcf,T,[0 1])];
+end
 
 fwhm = chopem(peaks(:,1),Ei,freq);
 
 for ind_p = 1:size(peaks,1)
-  peak(:,ind_p) = feval(lineshape,Et,[peaks(ind_p,1) fwhm(ind_p) peaks(ind_p,2) 0.1]);
+  peak(:,ind_p) = feval(lineshape,Et,[peaks(ind_p,1) fwhm(ind_p) peaks(ind_p,2) f]);
 end
 
-for ind_Et = 1:size(Et,2)
+for ind_Et = 1:length(Et)
   spec(ind_Et) = sum(peak(ind_Et,:));
 end
 
