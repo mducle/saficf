@@ -1,4 +1,31 @@
 function V = saficf(J,T,Ei,freq,ptgpstr,xdat,ydat,edat)
+% Fits crystal field parameters to neutron inelastic scattering data using simulated annealing.
+%
+% Syntax:  V = saficf(J,T,Ei,freq,ptgp,xdat,ydat,edat)
+%
+% Inputs:  J     - scalar     - the total angular momentum quantum number of the magnetic ion
+%          T     - vector     - the temperature in Kelvin of the datasets
+%          Ei    - vector     - the incident energy in meV of the datasets
+%          freq  - vector     - the chopper frequency in Hz of the datasets
+%          ptgp  - string     - the point group symmetry of the magnetic ion - see ptgp.m for details
+%          xdat  - cell array - {x1 x2 ...} - a cell array of the energy transfer data
+%          ydat  - cell array - {y1 y2 ...} - a cell array of the intensity data
+%          edat  - cell array - {e1 e2 ...} - a cell array of the error in the intensity data
+%
+% Outputs: V     - cell array - {B2 B4 B6} - crystal field parameters
+%
+% For single datasets, T,Ei,freq are scalars and xdat,ydat,edat are vectors.
+% The function will also get data from a graph window if you do not specify xdat,ydat,edat, but have
+%   already plotted the data, or obtained it from e.g. mslice.
+% For multiple datasets, T,Ei,freq are vectors and xdat,ydat,edat are cell arrays of vectors. The
+%   order of the vectors/cells is important, as T1,Ei1,freq1,x1,y1,e1, etc. correspond to a single
+%   dataset. If you do not specify xdat,ydat,edat but T,etc. are vectors, the function will get data
+%   from graphs, but each data set must have been plotted on a _separate_ graph window.
+
+% Simulated Annealing algorithm used is that due to Corana et al.
+% Ref: A. Corana, M. Marchesi, C. Martini, S. Ridella, ACM Trans. Math. Software, v13, p262-280, 1987
+
+% This file is part of the SAFiCF package, licenced under the Gnu GPL v2. 
 
 % ----------------------------------  Some default parameters  ------------------------------------ %
 maxsplit = 50;  % meV - the full CF splitting of the spin-orbit degenrate ground state.
@@ -78,7 +105,7 @@ for i_set = 1:num_dataset
   [npeaks(i_set),xpeaks{i_set},ypeaks{i_set}] = saficf_findpeaks(xdat{i_set},ydat{i_set},edat{i_set});
   pks = [];
   for ind_sites = 1:size(V,2)
-    pks = [pks; cflvls(norm_cfhmltn(4,V(:,ind_sites)),10,[0 1])]; 
+    pks = [pks; cflvls(norm_cfhmltn(J,V(:,ind_sites)),10,[0 1])]; 
   end
   pks(find(pks(:,2)<1e-2),:) = []; 
   xpks = pks(:,1); omt = [];
