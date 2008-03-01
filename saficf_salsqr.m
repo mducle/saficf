@@ -19,6 +19,8 @@ function [x, std]=saficf_salsqr(xdat,ydat,edat,pin,dpin,func,fcp,range)
 %
 % Outputs: p    - vector - fitted parameters
 %	   std  - vector - estimated errors in fitted parameters
+%
+% Ref: A. Corana, M. Marchesi, C. Martini, S. Ridella, ACM Trans. Math. Software, v13, p262-280, 1987
 
 % Duc Le - Tue Aug 28 14:27:17 BST 2007 - duc.le@ucl.ac.uk
 % This file is part of the SAFiCF package, licenced under the Gnu GPL v2. 
@@ -172,7 +174,7 @@ for k = 0:maxTstep
 % ------------------------------------------------------------------------------------------------- %
 % Step 5: Updates step vector
 % ------------------------------------------------------------------------------------------------- %
-   for i_u = variPars'
+   for i_u = variPars(:)'
      if n_u(i_u) > (0.6*Ns)
        vprime(i_u) = v(i_u) * (1 + ci(i_u)*(n_u(i_u)/Ns - 0.6)/0.4 );
      elseif n_u(i_u) < (0.4*Ns)
