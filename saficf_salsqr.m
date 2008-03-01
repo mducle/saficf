@@ -101,7 +101,7 @@ epsilon = 1e-4;      % Convergence criterion
 if ~exist('range','var')
   maxcost = maxCostF * sqrt( sum(ydat.^2 ./ edat.^2) );
   range = zeros(size(x));
-  for ipar = variPars
+  for ipar = variPars(:)'
     ht = ones(size(x)); ht(ipar) = maxRngeF*ht(ipar);
     xprime = x .* ht;   cost = maxcost*2;
     while(cost>maxcost)

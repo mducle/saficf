@@ -22,7 +22,7 @@ allowed = ptgp(ptgpstr);
 
 for ind_sites = 1:size(allowed,2)
   % Checks that the site symmetry is cubic. If so, need  B44 = 5.B40; B64 = -21.B60;
-  if strcmp(ptgpstr,'cubic') | strncmp(lower(ptgpstr),'t',1) | strncmp(lower(ptgpstr),'o',1)
+  if strcmp(ptgpstr,'cubic') || strncmp(lower(ptgpstr),'t',1) || strncmp(lower(ptgpstr),'o',1)
     E = eig(cf_hmltn(J,zeros(1,5),[0 0 0 0 1 0 0 0 5],[zeros(1,6) 1 0 0 0 -21 0 0]));
     split_unity = max(E-min(E));            % Full CF split with all parameters set to unity.
     if (J<2.5)
