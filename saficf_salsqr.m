@@ -10,7 +10,7 @@ function [x, std]=saficf_salsqr(xdat,ydat,edat,pin,dpin,func,fcp,range)
 %          dpin - vector - initial changes in the parameters to use (must be same dimensions as pin)
 %          func - handle - handle to the function to be fitted
 %          fcp  - vector - [fraction_to_multiply_dpin_with max_number_iterations cost_func_tolerance]
-%			   (optional) defaults to [0.1 20 0.0001]
+%                          (optional) defaults to [0.1 20 0.0001]
 %          rnge - vector - (optional) the range [-rnge...+rnge] for each parameter over which the
 %                          fitted function is bounded. If not specified, the function attempts to 
 %                          calculated a suitble range, which gives a cost function always less than
@@ -18,7 +18,7 @@ function [x, std]=saficf_salsqr(xdat,ydat,edat,pin,dpin,func,fcp,range)
 %                          The value of maxCostF can be changed in the function m-file.
 %
 % Outputs: p    - vector - fitted parameters
-%	   std  - vector - estimated errors in fitted parameters
+%          std  - vector - estimated errors in fitted parameters
 %
 % Ref: A. Corana, M. Marchesi, C. Martini, S. Ridella, ACM Trans. Math. Software, v13, p262-280, 1987
 
@@ -29,7 +29,7 @@ function [x, std]=saficf_salsqr(xdat,ydat,edat,pin,dpin,func,fcp,range)
 
 % ----------------------------------  Some default parameters  ------------------------------------ %
 maxTstep = 100;   % maximum number of temperature steps to take
-maxCostF = 50;    % factor to multiply sqrt(sum(ydat.^2./edat.^2)) to find the maximum allowed cost.
+maxCostF = 500;    % factor to multiply sqrt(sum(ydat.^2./edat.^2)) to find the maximum allowed cost.
 maxRngeF = 500;   % factor to multiply initial value of parameter by to get the maximum range.
 % ------------------------------------------------------------------------------------------------- %
 
@@ -99,15 +99,23 @@ epsilon = 1e-4;      % Convergence criterion
 
 % Determine the range of the parameters
 if ~exist('range','var')
-  maxcost = maxCostF * sqrt( sum(ydat.^2 ./ edat.^2) );
+  maxcost = maxCostF * sqrt( sum(ydat.^2 ./ edat.^2) ); cost_opt = maxcost;
   range = zeros(size(x));
   for ipar = variPars(:)'
     ht = ones(size(x)); ht(ipar) = maxRngeF*ht(ipar);
-    xprime = x .* ht;   cost = maxcost*2;
-    while(cost>maxcost)
+    xprime = x .* ht;   cost = maxcost*2; mciter = 0;
+    for mciter = 1:1000
       f = feval(func,xdat,xprime);
       cost = sqrt( sum( (f - ydat).^2 ./ (edat.^2) ) );
       xprime(ipar) = xprime(ipar)/1.5;
+      if cost>maxcost
+        break;
+      else
+        if cost<cost_opt
+          cost_opt = cost;
+        end
+        cost = cost_opt;
+      end
     end
     range(ipar) = xprime(ipar);
   end
@@ -119,6 +127,7 @@ end
 % Generates 10 random steps and finds cost of each. Then takes mean of cost, and set
 %   initial temperature so that at least half of steps are accepted.
 cost_opt =sqrt(sum((feval(func,xdat,x)-ydat).^2./edat.^2));% Optimized parameters and cost function so far.
+x_opt = x;
 for ind_conf = 1:10
   xprime = x + ( ((rand(size(v))-0.5).*2).*range.*v );
   f = feval(func,xdat,xprime);
@@ -127,7 +136,7 @@ for ind_conf = 1:10
     cost_opt = cost(ind_conf); x_opt = xprime;             % Use this cost/parameters if it's the lowest so far.
   end
 end
-mean_cost = sum(cost)/10;
+mean_cost = sum(cost)/10; cost = cost_opt;
 par_steps = sum(range)/length(range)/NT;                   % Average change in parameters / step.
 cost_factor = par_steps * 25 / mean_cost;
 [T0,Tsa] = deal( mean_cost * cost_factor / 25 );           % 1/log((1-n)/n) = 25 for n = 0.49
@@ -195,7 +204,8 @@ for k = 0:maxTstep
 % Step 6: Reduce temperature
 % ------------------------------------------------------------------------------------------------- %
   Tsa = rT * Tsa;
-  cost_opt;
+  cost_opt
+  x_opt'
   f_ustar(k+Nepsilon+1) = cost;
 
   %toc
@@ -250,11 +260,11 @@ std=sqrt(diag(covp));
 j=1;
 sig=zeros(size(x));
 for i=1:length(std)
-	while dp(j)==0
-		j=j+1;
-	end
-	sig(j)=std(i);
-	j=j+1;
+  while dp(j)==0
+    j=j+1;
+  end
+  sig(j)=std(i);
+  j=j+1;
 end
 std=sig;
 

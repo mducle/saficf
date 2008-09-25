@@ -1,4 +1,4 @@
-function out = florr(xdat,pars)
+function out = florr_h(xdat,pars)
 % Calculates a lorentzian function with given parameters at given ordinate.
 %
 % Syntax:  out = florr(pars,xdat)
