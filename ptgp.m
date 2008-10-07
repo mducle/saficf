@@ -46,8 +46,8 @@ hexagonal    = { [0 0 1 0 0]                    % B2 | a = b != c
                  [0 0 0 0 1 0 0 0 0]            % B4 | alpha = beta = 120 != gamma
                  [0 0 0 0 0 0 1 0 0 0 0 0 1] }; % B6 |
 cubic        = { [0 0 0 0 0]                    % B2 | a = b = c
-                 [0 0 0 0 1 0 0 0 1]            % B4 | alpha = beta = gamma = 90
-                 [0 0 0 0 0 0 1 0 0 0 1 0 0] }; % B6 |
+                 [0 0 0 0 1 0 0 0 5]            % B4 | alpha = beta = gamma = 90
+                 [0 0 0 0 0 0 1 0 0 0 -21 0 0] };%B6 |
 
 % Finds the non-zero parameters for each point group.
 switch lower(ptgp_string)
