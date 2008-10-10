@@ -1,7 +1,7 @@
-function [FitB2,FitB4,FitB6] = fitengy(A,B2,B4,B6,E,ind_par,constraints)
+function [FitB2,FitB4,FitB6] = fitengy(J,B2,B4,B6,E,ind_par,constraints)
 % fitengy(A,B2,B4,B6) - attempts to fit crystal field parameters in meV.
 %
-% Syntax:  [FitB2,FitB4,FitB6] = fitengy(A,B2,B4,B6,E,ind_par,constraints) 
+% Syntax:  [FitB2,FitB4,FitB6] = fitengy(J,B2,B4,B6,E,ind_par,constraints) 
 %
 % Inputs:  J  = Total angular momentum quantum number of the ground multiplet.
 %                 -2  -1  0   1   2
@@ -86,6 +86,16 @@ for ind_B = 1:length(ind_par)
   denom(ind_B) = trace( O_mat_el{ind_B}(:,:)' * O_mat_el{ind_B}(:,:) );
 end
 
+% Applies constraints if any
+if nargin > 6
+  cstr = constraints * FitB'; 
+  cstr_ind = find(cstr);
+  FitB(cstr_ind) = cstr(cstr_ind);
+  FitB2 = [0 0 FitB([1 2 3])];
+  FitB4 = [0 0 0 0 FitB([4 5 6 7 8])];
+  FitB6 = [0 0 0 0 0 0 FitB([9 10 11 12 13 14 15])];
+end
+
 % Starts iterations
 for num_iteration = 1:100
   
@@ -114,13 +124,13 @@ for num_iteration = 1:100
 % The denominator = Tr(<i|O_k^q|j><j|O_k^q|i>)
    %denom = trace( O_mat_el{ind_B}(:,:)' * O_mat_el{ind_B}(:,:) );
 
-    FitB(ind_B) = numer / denom(ind_B); 
+    FitB(ind_par(ind_B)) = numer / denom(ind_B); 
   end
 
 % Updates constraints
   if nargin > 6
-    cstr = constraints * FitB';
-    cstr_ind = find(cstr); 
+    cstr = constraints * FitB'; 
+    cstr_ind = find(cstr);
     FitB(cstr_ind) = cstr(cstr_ind);
   end
 
@@ -131,5 +141,8 @@ for num_iteration = 1:100
 end
 
 if nargout==1
-  FitB2 = {FitB2 FitB4 FitB6};
+  FitB2 = {FitB2;FitB4;FitB6};
+elseif nargout==2
+  FitB2 = {FitB2;FitB4;FitB6};
+  FitB4 = leastsqfit;
 end
