@@ -19,7 +19,8 @@ function [T,Ei,freq,xdat,ydat,edat] = saficf_rescale(T,Ei,freq,xdat,ydat,edat)
 % Duc Le - duc.le@ucl.ac.uk - Mon Oct 23 11:50:24 BST 2006 
 
 % Include definitions
-saficf_defs;
+%saficf_defs;
+peak_tol = 0.1; % meV - the tolerance on the energy transfer of inelastic peak
 
 num_dataset = length(T);
 
