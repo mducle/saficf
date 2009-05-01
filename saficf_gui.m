@@ -29,7 +29,7 @@ small = 1e-6;
 symm_string = {'Triclinic','Monoclinic','Orthorhombic','Hexagonal','Cubic','------','dhcp','P6mmc','D46h','------',...
                'Ci','Cs','C1','C2','C3','C4','C6','C2h','C3h','C4h','C6h','C2v','C3v','C4v','C6v','D2','D3','D4','D6',...
                'D2h','D3h','D4h','D6h','D2d','D3d','S4','S6','T','Th','Td','O','Oh'};
-numlvls = [0 0 0 0]; efit = []; J = 0; parsfit = {}; allowed = {}; T = 2; H = 0; L=0; S=0; Jdir = [];
+numlvls = [0 0 0 0]; efit = []; J = 0; parsfit = {}; allowed = {}; T = 2; H = 0; L=0; S=0; Jdir = []; xdat = []; ydat = []; edat = [];
 UN = 'Units'; NM = 'normalized';
 
 %------------------------------------------------------------------------------------------------------------------------------------%
@@ -56,6 +56,7 @@ hLvlsButs   = {hSingletBut hDoubletBut hTripletBut hQuartetBut}; lvlsstr = {'Sin
 
 hEstTranBut = uicontrol(hFig,'Style','pushbutton','String','Estimate Transitions',UN,NM,'Position',[620 370 120 25]./FigSizePixels,'FontSize',9,'Callback',{@cb_trans});
 hEstCFParBt = uicontrol(hFig,'Style','pushbutton','String','Estimate CF Pars',    UN,NM,'Position',[620 345 120 25]./FigSizePixels,'FontSize',9,'Callback',{@cb_fitengy});
+hEstLvlsBut = uicontrol(hFig,'Style','pushbutton','String','Est levels from spec',UN,NM,'Position',[620 320 120 25]./FigSizePixels,'FontSize',9,'Callback',{@cb_estlvls});
 
 hJTxt       = uicontrol(hFig,'Style','text','String','J=',UN,NM,'Position',[360 270 50 15]./FigSizePixels);
 hJEdt       = uicontrol(hFig,'Style','edit','String','0', UN,NM,'Position',[410 270 50 20]./FigSizePixels,'Callback',{@cb_symm});
@@ -298,6 +299,30 @@ function cb_getspec(hObject,eventdata)
   errorbar(hSpectra,xdat,ydat,edat); xlabel(hSpectra,'Energy Transfer (meV)'); ylabel(hSpectra,'Intensity (arb. units)');
   mx = max(ydat(find(xdat>(max(xdat)/5)))); lg = log10(mx); lg = ceil(abs(lg))*sign(lg); set(hSpectra,'YLim',[0 ceil(mx/10^lg)*10^lg]);
 end % cb_getspec
+%------------------------------------------------------------------------------------------------------------------------------------%
+function cb_estlvls(hObject,eventdata)
+  if(isempty(xdat) || isempty(ydat)); errordlg('No spectra to guess levels from!'); return; end;
+  queststr = sprintf('Do you want specify peak positions/FWHM on graph or\nfor SAFiCF to estimate it automatically?');
+  ask = questdlg(queststr,'Graph','Auto','Auto');
+  if(strcmp(queststr,'Graph'))
+    hTmp = figure; if(isempty(edat)); errorbar(hTmp,xdat,ydat,ydat.*0+(max(ydat)/20),'o'); else; errorbar(hTmp,xdat,ydat,edat,'o'); end;
+    peaksfitpars = saficf_fitpeaks(xdat,ydat,edat,0);
+    close(hTmp);
+  else
+    if(isempty(edat))
+      peaksfitpars = saficf_fitpeaks(xdat,ydat,ydat.*0+(max(ydat)/20)); else; peaksfitpars = saficf_fitpeaks(xdat,ydat,edat);
+    end
+  end
+  [efit,levels] = saficf_guesslevels(J,symm_string{get(hSymmPop,'val')},(2:3:(peaksfitspars(1)*3-1)));
+  % Plots fitted levels
+  for i=1:length(levels)
+    for id = 1:length(levels{i})
+      for idegen=1:i
+        line('XData',[0.1 0.4],'YData',[1 1].*(levels{i}(id)+(idegen-1)*(diff(get(hLevels,'YLim'))/100)),'Tag','SAFiCF_LevelsLine');
+      end
+    end
+  end
+end % cb_estlvls
 
 %------------------------------------------------------------------------------------------------------------------------------------%
 %  Utility functions

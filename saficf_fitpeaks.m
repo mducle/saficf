@@ -9,7 +9,7 @@ function fitpars = saficf_fitpeaks(xdat,ydat,edat,grph,const)
 %                           1 means graph is assumed to be plotted already.
 %          const - vector - constraints (if any) [NB. don't use if grph is not estimated parameters]
 %
-% Outputs: peaks - vector - [number_of_peaks x1 fwhm1 area1 ... xn fwhmn arean]
+% Outputs: peaks - vector - [number_of_peaks background x1 fwhm1 area1 ... xn fwhmn arean]
 
 % This function uses the Levenberg-Marquardt algorithm implemented by Shrager, Jutan and
 %   Muzic in the file speclsqr.m from the spec1d package to test for the lineshape that 
@@ -34,6 +34,24 @@ edat = edat(:);
 if exist('grph')                                        % ... by user clicking on graph.
   if isscalar(grph) && (grph==1)                        % If grph is not logical 1, assume
     errorbar(xdat,ydat,edat);                           %   user has already plotted data.
+    finish = 0; n = 0; estpars = 1;
+    while (finish==0)
+      n = n + 1; 
+      disp(['Click on peak ' num2str(n) '. Right click to finish.'])
+      waitforbuttonpress;
+      [finish,peaks(n,:)] = saficf_buttonpress();
+      if finish==1                                      % If use right clicks now, don't
+        peaks(n,:) = []; n = n - 1;                     %   save this point and break out
+        break                                           %   of the loop.
+      end
+      disp(['Click on half width for peak ' num2str(n)])  
+      waitforbuttonpress;
+      [finish,fwhmxye] = saficf_buttonpress(); 
+      fwhm = abs(peaks(n,1)-fwhmxye(1)) * 2;
+      estpars = [estpars peaks(n,1) fwhm fwhm*peaks(n,2)];
+      estpars(1) = n;
+    end
+    xpeaks = peaks(:,1); ypeaks = peaks(:,2);
   elseif isvector(grph) && length(grph)==(grph(1)*3+1)  % If grph is vector assume it is
     estpars = grph;                                     %   the estimated parameters.
     n = estpars(1);
@@ -67,7 +85,7 @@ else                                                    % ... from data directly
   end
 end
 
-if exist('const') && length(const)==length(estpars)
+if exist('const','var') && length(const)==length(estpars)
   warning('off','MATLAB:conversionToLogical');          % Stops matlab complaining about
   logconst = logical(const); [wnmsg,wncode] = lastwarn; %   converting numbers to 1s
   if ~strcmp(wncode,'MATLAB:conversionToLogical')       % If const is logical or 1s, times
@@ -77,8 +95,8 @@ else
   const = [0 ones(1,3*n)*0,1];
 end
 
-%[fitpars,stdev] = speclsqr(xdat,ydat,edat,estpars,const,@saficf_peakfitfunc);
-[fitpars,stdev] = saficf_salsqr(xdat,ydat,edat,estpars,const,@saficf_peakfitfunc);
+[fitpars,stdev] = speclsqr(xdat,ydat,edat,estpars,const,@saficf_peakfitfunc);
+%[fitpars,stdev] = saficf_salsqr(xdat,ydat,edat,estpars,const,@saficf_peakfitfunc);
 
 figure; errorbar(xdat,ydat,edat); hold all; plot(xdat,saficf_peakfitfunc(xdat,fitpars)); hold off;
 

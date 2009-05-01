@@ -31,11 +31,11 @@ end
 % Reference: D.Smith and J.H.M. Thornley, Proc. Phys. Soc., 1966, vol 89, pp779.
 
 % Works out the reduced matrix elements
-if 2*J-1>0
+%if 2*J-1>0
   RM1 = (1/2) * sqrt( factorial(2*J+1+1) / factorial(2*J-1) );
-else 
-  RM1 = 0;
-end
+%else 
+%  RM1 = 1;
+%end
 
 ind_i = 0;
 for Mj = -J:J

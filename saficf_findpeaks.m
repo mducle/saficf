@@ -46,7 +46,7 @@ for ind_x = 2:length(x_binned)-2
 end
 
 % Finds the magnitude of the elastic peak
-elas_mag = max(ydat(find(abs(xdat)<2)));
+elas_mag = max(ydat(find(abs(xdat)<2))); if isempty(elas_mag); elas_mag = max(ydat); end;
 
 % Finds the peak position index, from maximum in spectra where dy/dx=0 and d2y/dx2<0
 peak_pos = dydxzero_ind(find(d2y_dx2(dydxzero_ind)<0));
